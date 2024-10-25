@@ -1,0 +1,4 @@
+{
+    "root": true,
+    "pages": ["index", "sec_one_rust_basics","sec_two_halo2_basics","sec_three_halo2_mini_app"]
+}
