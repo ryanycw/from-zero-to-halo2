@@ -1,0 +1,1194 @@
+---
+title: "Chapter 6: Error Handling"
+description: "Learn Rust's robust error handling mechanisms and how to implement custom error types"
+---
+
+# Error Handling in Rust
+
+## Understanding Error Types
+
+Rust has two main types of errors: recoverable errors (`Result<T, E>`) and unrecoverable errors (`panic!`).
+
+### Result Type
+
+```rust title="Basic Result Usage"
+#[derive(Debug)]
+enum MathError {
+    DivisionByZero,
+    NegativeSquareRoot,
+    Overflow,
+}
+
+fn divide(a: f64, b: f64) -> Result<f64, MathError> {
+    if b == 0.0 {
+        Err(MathError::DivisionByZero)
+    } else {
+        Ok(a / b)
+    }
+}
+```
+
+### Practice Exercise: Basic Error Handling
+
+```rust title="exercises/basic_errors.rs"
+// Exercise 1: Implement a function that safely performs multiple mathematical
+// operations and returns appropriate errors for invalid inputs
+
+// Exercise 2: Create a function that validates user input (e.g., age, email)
+// and returns custom errors for invalid inputs
+
+// Exercise 3: Implement a function that reads from a file and handles
+// multiple possible error cases
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::fs::File;
+use std::io::{self, Read};
+use regex::Regex;
+
+// Exercise 1 Solution
+#[derive(Debug)]
+enum MathError {
+    DivisionByZero,
+    NegativeSquareRoot,
+    Overflow,
+    InvalidInput,
+}
+
+fn calculate_complex(x: f64, y: f64) -> Result<f64, MathError> {
+    // First, validate inputs
+    if x.is_nan() || y.is_nan() {
+        return Err(MathError::InvalidInput);
+    }
+    
+    // Try division
+    let division = divide(x, y)?;
+    
+    // Try square root
+    let sqrt = calculate_sqrt(division)?;
+    
+    // Check for overflow
+    if sqrt > f64::MAX / 2.0 {
+        return Err(MathError::Overflow);
+    }
+    
+    Ok(sqrt * 2.0)
+}
+
+fn divide(a: f64, b: f64) -> Result<f64, MathError> {
+    if b == 0.0 {
+        Err(MathError::DivisionByZero)
+    } else {
+        Ok(a / b)
+    }
+}
+
+fn calculate_sqrt(x: f64) -> Result<f64, MathError> {
+    if x < 0.0 {
+        Err(MathError::NegativeSquareRoot)
+    } else {
+        Ok(x.sqrt())
+    }
+}
+
+// Exercise 2 Solution
+#[derive(Debug)]
+enum ValidationError {
+    InvalidAge(String),
+    InvalidEmail(String),
+    InvalidUsername(String),
+}
+
+struct UserData {
+    username: String,
+    age: u32,
+    email: String,
+}
+
+impl UserData {
+    fn new(username: String, age: u32, email: String) -> Result<Self, ValidationError> {
+        // Validate username
+        if username.len() < 3 {
+            return Err(ValidationError::InvalidUsername(
+                "Username must be at least 3 characters long".to_string()
+            ));
+        }
+        
+        // Validate age
+        if age < 18 || age > 150 {
+            return Err(ValidationError::InvalidAge(
+                "Age must be between 18 and 150".to_string()
+            ));
+        }
+        
+        // Validate email
+        let email_regex = Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap();
+        if !email_regex.is_match(&email) {
+            return Err(ValidationError::InvalidEmail(
+                "Invalid email format".to_string()
+            ));
+        }
+        
+        Ok(UserData {
+            username,
+            age,
+            email,
+        })
+    }
+}
+
+// Exercise 3 Solution
+#[derive(Debug)]
+enum FileError {
+    IoError(io::Error),
+    EmptyFile,
+    InvalidContent(String),
+}
+
+impl From<io::Error> for FileError {
+    fn from(error: io::Error) -> Self {
+        FileError::IoError(error)
+    }
+}
+
+fn read_and_validate_file(path: &str) -> Result<String, FileError> {
+    let mut file = File::open(path)?;
+    let mut content = String::new();
+    file.read_to_string(&mut content)?;
+    
+    if content.is_empty() {
+        return Err(FileError::EmptyFile);
+    }
+    
+    // Validate content (example: check if it's valid UTF-8 and contains data)
+    if !content.chars().all(|c| c.is_ascii() || c.is_whitespace()) {
+        return Err(FileError::InvalidContent(
+            "File contains invalid characters".to_string()
+        ));
+    }
+    
+    Ok(content)
+}
+
+fn main() {
+    // Test Exercise 1
+    let calculations = vec![
+        (4.0, 2.0),
+        (16.0, 0.0),
+        (-16.0, 4.0),
+        (f64::MAX, 0.5),
+    ];
+    
+    for (x, y) in calculations {
+        match calculate_complex(x, y) {
+            Ok(result) => println!("Result of calculation: {}", result),
+            Err(e) => println!("Error in calculation: {:?}", e),
+        }
+    }
+    
+    // Test Exercise 2
+    let user_inputs = vec![
+        ("john", 25, "john@example.com"),
+        ("a", 15, "invalid-email"),
+        ("alice", 200, "alice@example.com"),
+    ];
+    
+    for (username, age, email) in user_inputs {
+        match UserData::new(username.to_string(), age, email.to_string()) {
+            Ok(user) => println!("Valid user: {:?}", user),
+            Err(e) => println!("Validation error: {:?}", e),
+        }
+    }
+    
+    // Test Exercise 3
+    let files = vec!["existing.txt", "empty.txt", "invalid.txt"];
+    
+    for file in files {
+        match read_and_validate_file(file) {
+            Ok(content) => println!("File content: {}", content),
+            Err(e) => println!("File error: {:?}", e),
+        }
+    }
+}
+```
+</details>
+
+## Custom Error Types
+
+### Creating Custom Error Types
+
+```rust title="Custom Error Type Example"
+use std::fmt;
+use std::error::Error;
+
+#[derive(Debug)]
+pub enum CustomError {
+    IoError(std::io::Error),
+    ParseError(String),
+    ValidationError { field: String, message: String },
+}
+
+impl fmt::Display for CustomError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            CustomError::IoError(e) => write!(f, "IO error: {}", e),
+            CustomError::ParseError(s) => write!(f, "Parse error: {}", s),
+            CustomError::ValidationError { field, message } => 
+                write!(f, "Validation error in {}: {}", field, message),
+        }
+    }
+}
+
+impl Error for CustomError {}
+
+impl From<std::io::Error> for CustomError {
+    fn from(err: std::io::Error) -> CustomError {
+        CustomError::IoError(err)
+    }
+}
+```
+
+### Practice Exercise: Custom Error Types
+
+```rust title="exercises/custom_errors.rs"
+// Exercise 1: Create a custom error type for a banking application
+// that handles different types of transaction errors
+
+// Exercise 2: Implement error conversions and the From trait
+// for your custom error types
+
+// Exercise 3: Create an error type that wraps multiple error types
+// and provides context information
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::fmt;
+use std::error::Error;
+
+// Exercise 1 Solution
+#[derive(Debug)]
+enum BankError {
+    InsufficientFunds { balance: f64, required: f64 },
+    InvalidAmount(String),
+    AccountLocked(String),
+    DailyLimitExceeded { limit: f64, attempted: f64 },
+}
+
+impl fmt::Display for BankError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            BankError::InsufficientFunds { balance, required } => {
+                write!(f, "Insufficient funds: balance {}, required {}", balance, required)
+            }
+            BankError::InvalidAmount(msg) => write!(f, "Invalid amount: {}", msg),
+            BankError::AccountLocked(reason) => write!(f, "Account locked: {}", reason),
+            BankError::DailyLimitExceeded { limit, attempted } => {
+                write!(f, "Daily limit exceeded: limit {}, attempted {}", limit, attempted)
+            }
+        }
+    }
+}
+
+impl Error for BankError {}
+
+struct BankAccount {
+    balance: f64,
+    daily_transactions: f64,
+    is_locked: bool,
+}
+
+impl BankAccount {
+    fn new(initial_balance: f64) -> Self {
+        BankAccount {
+            balance: initial_balance,
+            daily_transactions: 0.0,
+            is_locked: false,
+        }
+    }
+    
+    fn withdraw(&mut self, amount: f64) -> Result<f64, BankError> {
+        if self.is_locked {
+            return Err(BankError::AccountLocked("Account is frozen".to_string()));
+        }
+        
+        if amount <= 0.0 {
+            return Err(BankError::InvalidAmount("Amount must be positive".to_string()));
+        }
+        
+        if amount > self.balance {
+            return Err(BankError::InsufficientFunds {
+                balance: self.balance,
+                required: amount,
+            });
+        }
+        
+        const DAILY_LIMIT: f64 = 1000.0;
+        if self.daily_transactions + amount > DAILY_LIMIT {
+            return Err(BankError::DailyLimitExceeded {
+                limit: DAILY_LIMIT,
+                attempted: self.daily_transactions + amount,
+            });
+        }
+        
+        self.balance -= amount;
+        self.daily_transactions += amount;
+        Ok(self.balance)
+    }
+}
+
+// Exercise 2 Solution
+#[derive(Debug)]
+enum DatabaseError {
+    ConnectionError(String),
+    QueryError(String),
+}
+
+#[derive(Debug)]
+enum NetworkError {
+    Timeout(u64),
+    ConnectionFailed(String),
+}
+
+#[derive(Debug)]
+enum ApplicationError {
+    Database(DatabaseError),
+    Network(NetworkError),
+    Validation(String),
+}
+
+impl From<DatabaseError> for ApplicationError {
+    fn from(error: DatabaseError) -> Self {
+        ApplicationError::Database(error)
+    }
+}
+
+impl From<NetworkError> for ApplicationError {
+    fn from(error: NetworkError) -> Self {
+        ApplicationError::Network(error)
+    }
+}
+
+// Exercise 3 Solution
+#[derive(Debug)]
+struct ErrorContext<E> {
+    error: E,
+    context: String,
+    file: String,
+    line: u32,
+}
+
+impl<E: fmt::Display> fmt::Display for ErrorContext<E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Error at {}:{}: {}\nContext: {}",
+            self.file, self.line, self.error, self.context
+        )
+    }
+}
+
+#[macro_export]
+macro_rules! with_context {
+    ($error:expr, $context:expr) => {
+        ErrorContext {
+            error: $error,
+            context: $context.to_string(),
+            file: file!().to_string(),
+            line: line!(),
+        }
+    };
+}
+
+fn main() {
+    // Test BankAccount
+    let mut account = BankAccount::new(1000.0);
+    
+    let transactions = vec![
+        500.0,  // Should succeed
+        0.0,    // Invalid amount
+        2000.0, // Insufficient funds
+        600.0,  // Exceeds daily limit
+    ];
+    
+    for amount in transactions {
+        match account.withdraw(amount) {
+            Ok(balance) => println!("Withdrawal successful. New balance: {}", balance),
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+    
+    // Test ApplicationError conversions
+    fn simulate_database_error() -> Result<(), DatabaseError> {
+        Err(DatabaseError::ConnectionError("Connection refused".to_string()))
+    }
+    
+    fn simulate_network_error() -> Result<(), NetworkError> {
+        Err(NetworkError::Timeout(30))
+    }
+    
+    fn process_data() -> Result<(), ApplicationError> {
+        simulate_database_error()?;
+        simulate_network_error()?;
+        Ok(())
+    }
+    
+    match process_data() {
+        Ok(()) => println!("Processing successful"),
+        Err(e) => println!("Processing failed: {:?}", e),
+    }
+    
+    // Test ErrorContext
+    let result = std::fs::read_to_string("nonexistent.txt")
+        .map_err(|e| with_context!(e, "Failed to read configuration file"));
+    
+    if let Err(e) = result {
+        println!("\nError with context:\n{}", e);
+    }
+}
+```
+</details>
+
+## Error Propagation
+
+### The ? Operator
+
+```rust title="Error Propagation Example"
+use std::fs::File;
+use std::io::{self, Read};
+
+fn read_file_contents(path: &str) -> Result<String, io::Error> {
+    let mut file = File::open(path)?;
+    let mut content = String::new();
+    file.read_to_string(&mut content)?;
+    Ok(content)
+}
+```
+
+### Practice Exercise: Error Propagation
+
+```rust title="exercises/error_propagation.rs"
+// Exercise 1: Implement a function that chains multiple operations
+// that can fail, using the ? operator
+
+// Exercise 2: Create a function that handles multiple error types
+// and converts between them appropriately
+
+// Exercise 3: Implement error propagation with context information
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::fs::File;
+use std::io::{self, Read, Write};
+use std::path::Path;
+
+// Exercise 1 Solution
+#[derive(Debug)]
+enum ProcessError {
+    IoError(io::Error),
+    ParseError(std::num::ParseIntError),
+    ValidationError(String),
+}
+
+impl From<io::Error> for ProcessError {
+    fn from(error: io::Error) -> Self {
+        ProcessError::IoError(error)
+    }
+}
+
+impl From<std::num::ParseIntError> for ProcessError {
+    fn from(error: std::num::ParseIntError) -> Self {
+        ProcessError::ParseError(error)
+    }
+}
+
+fn process_data(path: &str) -> Result<Vec<i32>, ProcessError> {
+    // Read file
+    let mut file = File::open(path)?;
+    let mut content = String::new();
+    file.read_to_string(&mut content)?;
+    
+    // Parse numbers
+    let numbers: Result<Vec<i32>, _> = content
+        .lines()
+        .map(|line| line.parse())
+        .collect();
+    
+    let numbers = numbers?;
+    
+    // Validate
+    if numbers.is_empty() {
+        return Err(ProcessError::ValidationError("Empty data".to_string()));
+    }
+    
+    Ok(numbers)
+}
+
+// Exercise 2 Solution
+#[derive(Debug)]
+enum ConfigError {
+    Missing(String),
+    Invalid(String),
+    IoError(io::Error),
+}
+
+impl From<io::Error> for ConfigError {
+    fn from(error: io::Error) -> Self {
+        ConfigError::IoError(error)
+    }
+}
+
+struct Config {
+    server: String,
+    port: u16,
+    max_connections: u32,
+}
+
+fn load_config(path: &str) -> Result<Config, ConfigError> {
+    let content = std::fs::read_to_string(path)?;
+    let mut server = None;
+    let mut port = None;
+    let mut max_connections = None;
+    
+    for line in content.lines() {
+        let parts: Vec<&str> = line.splitn(2, '=').collect();
+        if parts.len() != 2 {
+            continue;
+        }
+        
+        match parts[0].trim() {
+            "server" => server = Some(parts[1].trim().to_string()),
+            "port" => port = Some(parts[1].trim().parse()
+                .map_err(|_| ConfigError::Invalid("Invalid port".to_string()))?),
+            "max_connections" => max_connections = Some(parts[1].trim().parse()
+                .map_err(|_| ConfigError::Invalid("Invalid max connections".to_string()))?),
+            _ => {}
+        }
+    }
+    
+    Ok(Config {
+        server: server.ok_or_else(|| ConfigError::Missing("server".to_string()))?,
+        port: port.ok_or_else(|| ConfigError::Missing("port".to_string()))?,
+        max_connections: max_connections
+            .ok_or_else(|| ConfigError::Missing("max_connections".to_string()))?,
+    })
+}
+
+// Exercise 3 Solution
+#[derive(Debug)]
+struct ContextError<E> {
+    error: E,
+    operation: String,
+    file: String,
+    line: u32,
+}
+
+impl<E: std::fmt::Display> std::fmt::Display for ContextError<E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "Error during '{}' at {}:{}: {}",
+            self.operation, self.file, self.line, self.error
+        )
+    }
+}
+
+trait AddContext<T, E> {
+    fn context(self, operation: &str) -> Result<T, ContextError<E>>;
+}
+
+impl<T, E> AddContext<T, E> for Result<T, E> {
+    fn context(self, operation: &str) -> Result<T, ContextError<E>> {
+        self.map_err(|error| ContextError {
+            error,
+            operation: operation.to_string(),
+            file: file!().to_string(),
+            line: line!(),
+        })
+    }
+}
+
+fn process_file_with_context(path: &str) -> Result<(), ContextError<io::Error>> {
+    let content = std::fs::read_to_string(path)
+        .context("reading file")?;
+        
+    let temp_path = Path::new("temp.txt");
+    std::fs::write(temp_path, content)
+        .context("writing temporary file")?;
+        
+    std::fs::remove_file(temp_path)
+        .context("cleaning up temporary file")?;
+        
+    Ok(())
+}
+
+fn main() {
+    // Test Exercise 1
+    match process_data("numbers.txt") {
+        Ok(numbers) => println!("Processed numbers: {:?}", numbers),
+        Err(e) => println!("Error processing data: {:?}", e),
+    }
+    
+    // Test Exercise 2
+    match load_config("config.txt") {
+        Ok(config) => println!("Loaded config: {:?}", config),
+        Err(e) => println!("Error loading config: {:?}", e),
+    }
+    
+    // Test Exercise 3
+    match process_file_with_context("test.txt") {
+        Ok(()) => println!("File processed successfully"),
+        Err(e) => println!("Error: {}", e),
+    }
+}
+```
+</details>
+
+## Advanced Error Handling Patterns
+
+### Using the `thiserror` Crate
+
+```rust title="Thiserror Example"
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum ServiceError {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    
+    #[error("Database error: {0}")]
+    Database(String),
+    
+    #[error("Invalid input: {field} - {message}")]
+    Validation {
+        field: String,
+        message: String,
+    }
+}
+```
+
+### Practice Exercise: Advanced Error Patterns
+
+```rust title="exercises/advanced_errors.rs"
+// Exercise 1: Create a error handling system using thiserror
+// that includes error chaining and source tracking
+
+// Exercise 2: Implement an error type that supports error recovery
+// and fallback mechanisms
+
+// Exercise 3: Create a error reporting system with error categories
+// and severity levels
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use thiserror::Error;
+use std::collections::HashMap;
+use std::time::SystemTime;
+
+// Exercise 1 Solution
+#[derive(Error, Debug)]
+enum ApiError {
+    #[error("HTTP error: {0}")]
+    Http(#[from] reqwest::Error),
+    
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
+    
+    #[error("Authentication failed: {0}")]
+    Auth(String),
+    
+    #[error("Rate limit exceeded. Try again in {seconds} seconds")]
+    RateLimit { seconds: u64 },
+}
+
+struct ApiClient {
+    base_url: String,
+    retry_count: u32,
+}
+
+impl ApiClient {
+    fn new(base_url: String) -> Self {
+        ApiClient {
+            base_url,
+            retry_count: 3,
+        }
+    }
+    
+    async fn make_request(&self, endpoint: &str) -> Result<String, ApiError> {
+        let mut attempts = 0;
+        loop {
+            match self.single_request(endpoint).await {
+                Ok(response) => return Ok(response),
+                Err(e) => {
+                    attempts += 1;
+                    if attempts >= self.retry_count {
+                        return Err(e);
+                    }
+                    // Only retry on certain errors
+                    match e {
+                        ApiError::Http(_) => continue,
+                        _ => return Err(e),
+                    }
+                }
+            }
+        }
+    }
+    
+    async fn single_request(&self, endpoint: &str) -> Result<String, ApiError> {
+        // Implementation details omitted for brevity
+        Ok("Response".to_string())
+    }
+}
+
+// Exercise 2 Solution
+#[derive(Debug)]
+struct RecoverableError<T> {
+    original_error: Box<dyn std::error::Error>,
+    recovery_value: Option<T>,
+    recovery_attempted: bool,
+}
+
+trait Recoverable<T> {
+    fn recover(&self) -> Option<T>;
+}
+
+struct DataProcessor<T> {
+    fallback_value: T,
+    recovery_strategies: Vec<Box<dyn Fn(&dyn std::error::Error) -> Option<T>>>,
+}
+
+impl<T: Clone> DataProcessor<T> {
+    fn new(fallback: T) -> Self {
+        DataProcessor {
+            fallback_value: fallback,
+            recovery_strategies: Vec::new(),
+        }
+    }
+    
+    fn add_recovery_strategy<F>(&mut self, strategy: F)
+    where
+        F: Fn(&dyn std::error::Error) -> Option<T> + 'static,
+    {
+        self.recovery_strategies.push(Box::new(strategy));
+    }
+    
+    fn process<E: std::error::Error + 'static>(
+        &self,
+        operation: impl FnOnce() -> Result<T, E>
+    ) -> Result<T, RecoverableError<T>> {
+        match operation() {
+            Ok(value) => Ok(value),
+            Err(e) => {
+                // Try each recovery strategy
+                for strategy in &self.recovery_strategies {
+                    if let Some(recovered) = strategy(&e) {
+                        return Ok(recovered);
+                    }
+                }
+                
+                // If all strategies fail, return a recoverable error
+                Err(RecoverableError {
+                    original_error: Box::new(e),
+                    recovery_value: Some(self.fallback_value.clone()),
+                    recovery_attempted: true,
+                })
+            }
+        }
+    }
+}
+
+// Exercise 3 Solution
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum ErrorSeverity {
+    Debug,
+    Info,
+    Warning,
+    Error,
+    Critical,
+}
+
+#[derive(Debug)]
+struct ErrorReport {
+    message: String,
+    severity: ErrorSeverity,
+    timestamp: SystemTime,
+    category: String,
+    context: HashMap<String, String>,
+}
+
+struct ErrorReporter {
+    errors: Vec<ErrorReport>,
+    severity_threshold: ErrorSeverity,
+}
+
+impl ErrorReporter {
+    fn new(severity_threshold: ErrorSeverity) -> Self {
+        ErrorReporter {
+            errors: Vec::new(),
+            severity_threshold,
+        }
+    }
+    
+    fn report(&mut self, message: &str, severity: ErrorSeverity, category: &str) {
+        if severity >= self.severity_threshold {
+            let report = ErrorReport {
+                message: message.to_string(),
+                severity,
+                timestamp: SystemTime::now(),
+                category: category.to_string(),
+                context: HashMap::new(),
+            };
+            self.errors.push(report);
+        }
+    }
+    
+    fn get_by_severity(&self, severity: ErrorSeverity) -> Vec<&ErrorReport> {
+        self.errors
+            .iter()
+            .filter(|report| report.severity == severity)
+            .collect()
+    }
+    
+    fn get_by_category(&self, category: &str) -> Vec<&ErrorReport> {
+        self.errors
+            .iter()
+            .filter(|report| report.category == category)
+            .collect()
+    }
+    
+    fn clear_old_errors(&mut self, age_threshold: std::time::Duration) {
+        let now = SystemTime::now();
+        self.errors.retain(|report| {
+            report.timestamp
+                .elapsed()
+                .map(|age| age < age_threshold)
+                .unwrap_or(false)
+        });
+    }
+}
+
+fn main() {
+    // Test Exercise 2
+    let mut processor = DataProcessor::new(0);
+    
+    processor.add_recovery_strategy(|e| {
+        // Try to recover from parse errors with a default value
+        if e.to_string().contains("parse") {
+            Some(0)
+        } else {
+            None
+        }
+    });
+    
+    let result = processor.process(|| {
+        "not_a_number".parse::<i32>()
+    });
+    
+    match result {
+        Ok(value) => println!("Processed value: {}", value),
+        Err(e) => println!("Error with fallback: {:?}", e),
+    }
+    
+    // Test Exercise 3
+    let mut reporter = ErrorReporter::new(ErrorSeverity::Warning);
+    
+    reporter.report(
+        "Database connection slow",
+        ErrorSeverity::Warning,
+        "database"
+    );
+    
+    reporter.report(
+        "System crash",
+        ErrorSeverity::Critical,
+        "system"
+    );
+    
+    println!("Critical errors: {:?}", reporter.get_by_severity(ErrorSeverity::Critical));
+    println!("Database errors: {:?}", reporter.get_by_category("database"));
+}
+```
+</details>
+
+## Integration Project: Error Management System
+
+Let's create a complete error management system that combines all the concepts we've learned:
+
+```rust title="exercises/error_management.rs"
+// Create an error management system that:
+// 1. Handles different types of errors
+// 2. Provides error recovery mechanisms
+// 3. Implements error reporting and logging
+// 4. Supports error categorization and filtering
+// 5. Includes context and debugging information
+
+// TODO: Implement the error management system
+
+fn main() {
+    // TODO: Test the error management system
+}
+```
+
+<details>
+<summary>Show Complete Solution</summary>
+
+```rust
+use std::collections::HashMap;
+use std::error::Error;
+use std::fmt;
+use std::time::{SystemTime, Duration};
+use thiserror::Error;
+
+// Error Types
+#[derive(Error, Debug)]
+enum AppError {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    
+    #[error("Validation error: {0}")]
+    Validation(String),
+    
+    #[error("Database error: {0}")]
+    Database(String),
+    
+    #[error("Network error: {0}")]
+    Network(String),
+}
+
+// Error Severity
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum ErrorSeverity {
+    Debug,
+    Info,
+    Warning,
+    Error,
+    Critical,
+}
+
+// Error Context
+#[derive(Debug)]
+struct ErrorContext {
+    timestamp: SystemTime,
+    file: String,
+    line: u32,
+    user_id: Option<String>,
+    additional_info: HashMap<String, String>,
+}
+
+// Error Report
+#[derive(Debug)]
+struct ErrorReport {
+    error: Box<dyn Error>,
+    context: ErrorContext,
+    severity: ErrorSeverity,
+    category: String,
+}
+
+// Error Manager
+struct ErrorManager {
+    errors: Vec<ErrorReport>,
+    severity_threshold: ErrorSeverity,
+    max_age: Duration,
+    error_handlers: HashMap<String, Box<dyn Fn(&ErrorReport)>>,
+}
+
+impl ErrorManager {
+    fn new(severity_threshold: ErrorSeverity) -> Self {
+        ErrorManager {
+            errors: Vec::new(),
+            severity_threshold,
+            max_age: Duration::from_secs(24 * 60 * 60), // 24 hours
+            error_handlers: HashMap::new(),
+        }
+    }
+    
+    fn report<E: Error + 'static>(
+        &mut self,
+        error: E,
+        severity: ErrorSeverity,
+        category: &str,
+        user_id: Option<String>,
+    ) {
+        if severity >= self.severity_threshold {
+            let context = ErrorContext {
+                timestamp: SystemTime::now(),
+                file: file!().to_string(),
+                line: line!(),
+                user_id,
+                additional_info: HashMap::new(),
+            };
+            
+            let report = ErrorReport {
+                error: Box::new(error),
+                context,
+                severity,
+                category: category.to_string(),
+            };
+            
+            // Handle error if handler exists
+            if let Some(handler) = self.error_handlers.get(&report.category) {
+                handler(&report);
+            }
+            
+            self.errors.push(report);
+        }
+    }
+    
+    fn register_handler<F>(&mut self, category: &str, handler: F)
+    where
+        F: Fn(&ErrorReport) + 'static,
+    {
+        self.error_handlers.insert(category.to_string(), Box::new(handler));
+    }
+    
+    fn get_errors_by_severity(&self, severity: ErrorSeverity) -> Vec<&ErrorReport> {
+        self.errors
+            .iter()
+            .filter(|report| report.severity == severity)
+            .collect()
+    }
+    
+    fn get_errors_by_category(&self, category: &str) -> Vec<&ErrorReport> {
+        self.errors
+            .iter()
+            .filter(|report| report.category == category)
+            .collect()
+    }
+    
+    fn clean_old_errors(&mut self) {
+        let cutoff = SystemTime::now()
+            .checked_sub(self.max_age)
+            .unwrap_or_else(SystemTime::now);
+            
+        self.errors.retain(|report| report.context.timestamp > cutoff);
+    }
+    
+    fn get_error_statistics(&self) -> HashMap<String, usize> {
+        let mut stats = HashMap::new();
+        
+        for report in &self.errors {
+            *stats.entry(report.category.clone()).or_insert(0) += 1;
+        }
+        
+        stats
+    }
+}
+
+fn main() {
+    let mut error_manager = ErrorManager::new(ErrorSeverity::Warning);
+    
+    // Register handlers
+    error_manager.register_handler("database", |report| {
+        println!("Database error occurred: {:?}", report.error);
+        // Could send notification to database admin
+    });
+    
+    error_manager.register_handler("network", |report| {
+        println!("Network error occurred: {:?}", report.error);
+        // Could trigger network diagnostics
+    });
+    
+    // Simulate some errors
+    error_manager.report(
+        AppError::Database("Connection failed".to_string()),
+        ErrorSeverity::Critical,
+        "database",
+        Some("user123".to_string()),
+    );
+    
+    error_manager.report(
+        AppError::Network("Timeout".to_string()),
+        ErrorSeverity::Error,
+        "network",
+        None,
+    );
+    
+    error_manager.report(
+        AppError::Validation("Invalid input".to_string()),
+        ErrorSeverity::Warning,
+        "validation",
+        Some("user456".to_string()),
+    );
+    
+    // Print statistics
+    println!("\nError Statistics:");
+    for (category, count) in error_manager.get_error_statistics() {
+        println!("{}: {} errors", category, count);
+    }
+    
+    // Print critical errors
+    println!("\nCritical Errors:");
+    for error in error_manager.get_errors_by_severity(ErrorSeverity::Critical) {
+        println!("{:?}", error);
+    }
+    
+    // Clean old errors
+    error_manager.clean_old_errors();
+}
+```
+</details>
+
+## Best Practices and Common Patterns
+
+<Callout type="info" title="Error Handling Best Practices">
+1. Make your error types meaningful and specific
+2. Include context in error messages
+3. Use appropriate error granularity
+4. Implement standard traits for error types
+5. Consider recovery strategies for different error cases
+6. Document error conditions and handling
+</Callout>
+
+## Next Steps
+
+After completing this chapter, you should be able to:
+- Design and implement custom error types
+- Handle errors appropriately in different situations
+- Use error propagation effectively
+- Implement error recovery mechanisms
+- Create comprehensive error management systems
+
+The next chapter will cover testing in Rust.
+
+<Cards>
+  <Card
+    title="Error Handling in Rust"
+    href="https://doc.rust-lang.org/book/ch09-00-error-handling.html"
+  >
+    Official Rust documentation on error handling
+  </Card>
+  
+  <Card
+    title="thiserror Documentation"
+    href="https://docs.rs/thiserror"
+  >
+    Documentation for the thiserror crate
+  </Card>
+</Cards>
