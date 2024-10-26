@@ -1,0 +1,788 @@
+---
+title: "Chapter 2: Rust Basic Syntax"
+description: "Learn the fundamental syntax and basic concepts of Rust programming language"
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+# Rust Basic Syntax
+
+This chapter introduces the fundamental syntax and basic concepts of Rust. We'll focus on the essential building blocks you'll need for Halo2 development.
+
+## Variables and Data Types
+
+### Variable Declaration
+
+In Rust, variables are immutable by default. This is a key feature that helps prevent bugs and makes code easier to reason about.
+
+```rust title="Basic Variable Declaration"
+// Immutable variable
+let x = 5;
+
+// Mutable variable
+let mut y = 5;
+y = 6; // This works because y is mutable
+
+// Type annotation (usually optional)
+let z: i32 = 5;
+```
+
+<Callout>
+Variables are immutable by default in Rust. This is different from many other programming languages and is part of Rust's focus on safety.
+</Callout>
+
+### Basic Data Types
+
+Rust has several primitive types that you'll use frequently:
+
+<Tabs items={["Integers", "Floating-Point", "Boolean", "Character"]}>
+
+```rust tab="Integers"
+// Signed integers
+let a: i8 = -128;    // 8-bit
+let b: i16 = 32767;  // 16-bit
+let c: i32 = 2147483647;  // 32-bit
+let d: i64 = 9223372036854775807;  // 64-bit
+let e: i128 = 170141183460469231731687303715884105727;  // 128-bit
+
+// Unsigned integers
+let f: u8 = 255;
+let g: u16 = 65535;
+let h: u32 = 4294967295;
+let i: u64 = 18446744073709551615;
+let j: u128 = 340282366920938463463374607431768211455;
+
+// Architecture-dependent integers
+let k: isize = 123;  // pointer-sized signed integer
+let l: usize = 123;  // pointer-sized unsigned integer
+```
+
+```rust tab="Floating-Point"
+let float32: f32 = 3.14;  // single precision
+let float64: f64 = 3.14159265359;  // double precision
+
+// Scientific notation
+let scientific: f64 = 2.5e-3;  // 0.0025
+```
+
+```rust tab="Boolean"
+let true_value: bool = true;
+let false_value: bool = false;
+
+// Boolean operations
+let and_result = true && false;  // false
+let or_result = true || false;   // true
+let not_result = !true;          // false
+```
+
+```rust tab="Character"
+let letter: char = 'A';
+let emoji: char = '😀';
+let chinese_char: char = '中';
+
+// Unicode escape
+let unicode_char = '\u{1F600}';  // 😀
+```
+
+</Tabs>
+
+### Compound Types
+
+#### Tuples
+Tuples group together values of different types:
+
+```rust title="Tuple Examples"
+// Basic tuple
+let tup: (i32, f64, bool) = (500, 6.4, true);
+
+// Destructuring
+let (x, y, z) = tup;
+println!("y is: {}", y);
+
+// Accessing tuple elements
+let five_hundred = tup.0;
+let six_point_four = tup.1;
+```
+
+#### Arrays
+Arrays are fixed-length collections of the same type:
+
+```rust title="Array Examples"
+// Fixed-size array
+let months = ["January", "February", "March"];
+
+// Array with type and size
+let numbers: [i32; 5] = [1, 2, 3, 4, 5];
+
+// Array with repeated values
+let zeros = [0; 10];  // Creates [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+// Accessing array elements
+let first = numbers[0];
+```
+
+<Callout type="warn">
+Array indices are checked at runtime. Accessing an array with an invalid index will cause a panic.
+</Callout>
+
+## Control Flow
+
+### If Expressions
+
+Rust's if expressions are similar to other languages but with some unique features:
+
+```rust title="If Expressions"
+let number = 5;
+
+// Basic if-else
+if number < 10 {
+    println!("first condition was true");
+} else if number < 22 {
+    println!("second condition was true");
+} else {
+    println!("condition was false");
+}
+
+// If in a let statement
+let condition = true;
+let number = if condition { 5 } else { 6 };
+```
+
+### Loops
+
+Rust provides several ways to handle repetitive tasks:
+
+#### For Loop
+```rust title="For Loop Examples"
+// Iterating over a range
+for i in 0..5 {
+    println!("Value: {}", i);
+}
+
+// Iterating over an array
+let colors = ["red", "green", "blue"];
+for color in colors.iter() {
+    println!("Color: {}", color);
+}
+```
+
+#### While Loop
+```rust title="While Loop"
+let mut number = 3;
+while number != 0 {
+    println!("{}!", number);
+    number -= 1;
+}
+```
+
+#### Loop with Break and Continue
+```rust title="Loop with Control Flow"
+let mut counter = 0;
+
+let result = loop {
+    counter += 1;
+    
+    if counter == 10 {
+        break counter * 2;  // Returns a value
+    }
+};
+
+println!("Result: {}", result);  // Prints: Result: 20
+```
+
+## Functions
+
+Functions are declared using the `fn` keyword:
+
+```rust title="Function Examples"
+// Basic function
+fn say_hello() {
+    println!("Hello!");
+}
+
+// Function with parameters
+fn add(x: i32, y: i32) -> i32 {
+    x + y  // Implicit return (no semicolon)
+}
+
+// Function with multiple parameters and explicit return
+fn multiply(x: i32, y: i32) -> i32 {
+    return x * y;  // Explicit return
+}
+
+// Using the functions
+fn main() {
+    say_hello();
+    let sum = add(5, 6);
+    let product = multiply(4, 3);
+}
+```
+
+<Callout type="info" title="Return Values">
+The last expression in a function block is implicitly returned. If you want to return early, use the `return` keyword.
+</Callout>
+
+## Comments and Documentation
+
+Rust supports several types of comments:
+
+```rust title="Comments and Documentation"
+// Line comments are created using two slashes
+
+/* Block comments
+   can span multiple lines */
+
+/// Documentation comments support markdown
+/// ```rust
+/// let x = 5;
+/// ```
+fn documented_function() {
+    // Function implementation
+}
+
+//! Module-level documentation comments
+//! Typically placed at the top of src/lib.rs or a module file
+```
+
+## Exercises
+
+1. **Variable Practice**
+   Create variables of different types and try to modify them:
+   ```rust
+   // TODO: Create immutable and mutable variables
+   // TODO: Try to modify an immutable variable and observe the error
+   // TODO: Create variables of different numeric types
+   ```
+
+2. **Control Flow**
+   Write a function that determines if a year is a leap year:
+   ```rust
+   fn is_leap_year(year: u32) -> bool {
+       // TODO: Implement leap year logic
+   }
+   ```
+
+3. **Function Implementation**
+   Create a temperature conversion function:
+   ```rust
+   // TODO: Implement a function that converts Celsius to Fahrenheit
+   fn celsius_to_fahrenheit(celsius: f64) -> f64 {
+       // Implementation here
+   }
+   ```
+
+## Advanced Topics Preview
+
+<Cards>
+  <Card
+    title="Pattern Matching"
+    href="/chapter-3"
+  >
+    Learn about Rust's powerful pattern matching capabilities
+  </Card>
+  
+  <Card
+    title="Error Handling"
+    href="/chapter-4"
+  >
+    Discover how Rust handles errors and exceptions
+  </Card>
+</Cards>
+
+## Common Mistakes and Solutions
+
+<Callout type="warn" title="Common Pitfalls">
+1. **Forgetting type annotations when needed**
+   ```rust
+   let guess = "42".parse();  // Error: type annotation needed
+   let guess: i32 = "42".parse().expect("Not a number!");  // Correct
+   ```
+
+2. **Using uninitialized variables**
+   ```rust
+   let x: i32;
+   println!("{}", x);  // Error: used uninitialized variable
+   ```
+
+3. **Mismatched types in if expressions**
+   ```rust
+   let number = if true { 5 } else { "six" };  // Error: mismatched types
+   ```
+</Callout>
+
+## Next Steps
+
+After completing this chapter, you should:
+- Understand Rust's basic syntax
+- Be able to work with variables and different data types
+- Know how to use control flow statements
+- Be able to define and use functions
+
+In the next chapter, we'll explore Rust's ownership system, which is one of its most unique and powerful features.
+
+## Additional Resources
+
+<Cards>
+  <Card
+    title="Rust Language Reference"
+    href="https://doc.rust-lang.org/reference/"
+  >
+    Detailed information about Rust's syntax and features
+  </Card>
+  
+  <Card
+    title="Rust Standard Library"
+    href="https://doc.rust-lang.org/std/"
+  >
+    Documentation for Rust's standard library
+  </Card>
+</Cards>
+
+## Control Flow
+
+### If Expressions
+
+Rust's if expressions are similar to other languages but with some unique features:
+
+```rust title="If Expressions"
+let number = 5;
+
+// Basic if-else
+if number < 10 {
+    println!("first condition was true");
+} else if number < 22 {
+    println!("second condition was true");
+} else {
+    println!("condition was false");
+}
+
+// If in a let statement
+let condition = true;
+let number = if condition { 5 } else { 6 };
+```
+
+### Loops
+
+Rust provides several ways to handle repetitive tasks:
+
+#### For Loop
+```rust title="For Loop Examples"
+// Iterating over a range
+for i in 0..5 {
+    println!("Value: {}", i);
+}
+
+// Iterating over an array
+let colors = ["red", "green", "blue"];
+for color in colors.iter() {
+    println!("Color: {}", color);
+}
+```
+
+#### While Loop
+```rust title="While Loop"
+let mut number = 3;
+while number != 0 {
+    println!("{}!", number);
+    number -= 1;
+}
+```
+
+#### Loop with Break and Continue
+```rust title="Loop with Control Flow"
+let mut counter = 0;
+
+let result = loop {
+    counter += 1;
+    
+    if counter == 10 {
+        break counter * 2;  // Returns a value
+    }
+};
+
+println!("Result: {}", result);  // Prints: Result: 20
+```
+
+### Practice Exercises: Control Flow
+
+```rust title="exercises/control_flow.rs"
+fn main() {
+    // Exercise 1: FizzBuzz
+    // Write a program that prints numbers from 1 to 100
+    // For multiples of 3, print "Fizz"
+    // For multiples of 5, print "Buzz"
+    // For multiples of both 3 and 5, print "FizzBuzz"
+    
+    // Exercise 2: Write a loop that prints the first 10 fibonacci numbers
+    
+    // Exercise 3: Create a loop that counts down from 10 to 1
+    // Break the loop if a key condition is met
+    
+    // Exercise 4: Implement a simple calculator using a match expression
+    // It should handle addition, subtraction, multiplication, and division
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+fn main() {
+    // Exercise 1 Solution: FizzBuzz
+    for i in 1..=100 {
+        match (i % 3, i % 5) {
+            (0, 0) => println!("FizzBuzz"),
+            (0, _) => println!("Fizz"),
+            (_, 0) => println!("Buzz"),
+            (_, _) => println!("{}", i),
+        }
+    }
+    
+    // Exercise 2 Solution: Fibonacci
+    let mut a = 0;
+    let mut b = 1;
+    for _ in 0..10 {
+        println!("{}", a);
+        let temp = a + b;
+        a = b;
+        b = temp;
+    }
+    
+    // Exercise 3 Solution: Countdown
+    let mut count = 10;
+    while count > 0 {
+        println!("{}", count);
+        if count == 5 {
+            println!("Halfway there!");
+        }
+        count -= 1;
+    }
+    
+    // Exercise 4 Solution: Calculator
+    fn calculator(op: char, a: f64, b: f64) -> Option<f64> {
+        match op {
+            '+' => Some(a + b),
+            '-' => Some(a - b),
+            '*' => Some(a * b),
+            '/' => if b != 0.0 { Some(a / b) } else { None },
+            _ => None,
+        }
+    }
+}
+```
+</details>
+
+## Functions
+
+Functions are declared using the `fn` keyword:
+
+```rust title="Function Examples"
+// Basic function
+fn say_hello() {
+    println!("Hello!");
+}
+
+// Function with parameters
+fn add(x: i32, y: i32) -> i32 {
+    x + y  // Implicit return (no semicolon)
+}
+
+// Function with multiple parameters and explicit return
+fn multiply(x: i32, y: i32) -> i32 {
+    return x * y;  // Explicit return
+}
+
+// Using the functions
+fn main() {
+    say_hello();
+    let sum = add(5, 6);
+    let product = multiply(4, 3);
+}
+```
+
+<Callout type="info" title="Return Values">
+The last expression in a function block is implicitly returned. If you want to return early, use the `return` keyword.
+</Callout>
+
+### Practice Exercises: Functions
+
+```rust title="exercises/functions.rs"
+// Exercise 1: Write a function that takes a string and returns its length
+// Bonus: Make it work with Unicode characters correctly
+
+// Exercise 2: Write a function that takes an array of numbers 
+// and returns both the minimum and maximum values
+
+// Exercise 3: Implement a function that takes a temperature in Fahrenheit
+// and returns a tuple of the temperature in Celsius and Kelvin
+
+// Exercise 4: Create a function that determines if a number is prime
+// It should return a Result type to handle invalid inputs (negative numbers)
+
+fn main() {
+    // Test your functions here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+// Exercise 1 Solution
+fn string_length(s: &str) -> usize {
+    s.chars().count()  // Handles Unicode correctly
+}
+
+// Exercise 2 Solution
+fn find_min_max(numbers: &[i32]) -> (i32, i32) {
+    let mut min = numbers[0];
+    let mut max = numbers[0];
+    
+    for &num in numbers {
+        if num < min { min = num; }
+        if num > max { max = num; }
+    }
+    
+    (min, max)
+}
+
+// Exercise 3 Solution
+fn fahrenheit_to_all(f: f64) -> (f64, f64) {
+    let celsius = (f - 32.0) * 5.0 / 9.0;
+    let kelvin = celsius + 273.15;
+    (celsius, kelvin)
+}
+
+// Exercise 4 Solution
+fn is_prime(n: i32) -> Result<bool, String> {
+    if n < 0 {
+        return Err("Negative numbers cannot be prime".to_string());
+    }
+    if n <= 1 {
+        return Ok(false);
+    }
+    
+    for i in 2..=(n as f64).sqrt() as i32 {
+        if n % i == 0 {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+fn main() {
+    // Test Exercise 1
+    assert_eq!(string_length("hello"), 5);
+    assert_eq!(string_length("你好"), 2);
+    
+    // Test Exercise 2
+    let numbers = [1, 5, 3, 8, 2];
+    let (min, max) = find_min_max(&numbers);
+    assert_eq!(min, 1);
+    assert_eq!(max, 8);
+    
+    // Test Exercise 3
+    let (c, k) = fahrenheit_to_all(32.0);
+    assert_eq!(c, 0.0);
+    assert_eq!(k, 273.15);
+    
+    // Test Exercise 4
+    assert_eq!(is_prime(17), Ok(true));
+    assert_eq!(is_prime(4), Ok(false));
+    assert!(is_prime(-5).is_err());
+}
+```
+</details>
+
+## Integration Challenge: Combining Concepts
+
+```rust title="exercises/integration.rs"
+// Final Challenge: Create a simple grade management system that combines
+// all the concepts we've learned. The system should:
+// 1. Store student grades using appropriate data types
+// 2. Calculate average grades
+// 3. Assign letter grades
+// 4. Handle invalid inputs
+// 5. Generate reports
+
+struct Student {
+    // TODO: Define the structure
+}
+
+impl Student {
+    // TODO: Implement methods
+}
+
+fn main() {
+    // TODO: Implement the grade management system
+}
+```
+
+<details>
+<summary>Show Complete Solution</summary>
+
+```rust
+#[derive(Debug)]
+struct Student {
+    name: String,
+    grades: Vec<f64>,
+    letter_grade: Option<char>,
+}
+
+impl Student {
+    fn new(name: String) -> Student {
+        Student {
+            name,
+            grades: Vec::new(),
+            letter_grade: None,
+        }
+    }
+    
+    fn add_grade(&mut self, grade: f64) -> Result<(), String> {
+        if grade < 0.0 || grade > 100.0 {
+            return Err("Grade must be between 0 and 100".to_string());
+        }
+        self.grades.push(grade);
+        self.calculate_letter_grade();
+        Ok(())
+    }
+    
+    fn calculate_average(&self) -> Option<f64> {
+        if self.grades.is_empty() {
+            None
+        } else {
+            Some(self.grades.iter().sum::<f64>() / self.grades.len() as f64)
+        }
+    }
+    
+    fn calculate_letter_grade(&mut self) {
+        self.letter_grade = self.calculate_average().map(|avg| {
+            match avg {
+                avg if avg >= 90.0 => 'A',
+                avg if avg >= 80.0 => 'B',
+                avg if avg >= 70.0 => 'C',
+                avg if avg >= 60.0 => 'D',
+                _ => 'F',
+            }
+        });
+    }
+    
+    fn generate_report(&self) -> String {
+        let avg = self.calculate_average()
+            .map(|a| a.to_string())
+            .unwrap_or("No grades yet".to_string());
+            
+        let letter = self.letter_grade
+            .map(|l| l.to_string())
+            .unwrap_or("N/A".to_string());
+            
+        format!(
+            "Student: {}\nGrades: {:?}\nAverage: {}\nLetter Grade: {}",
+            self.name, self.grades, avg, letter
+        )
+    }
+}
+
+fn main() {
+    let mut students = vec![
+        Student::new("Alice".to_string()),
+        Student::new("Bob".to_string()),
+    ];
+    
+    // Add grades for Alice
+    if let Err(e) = students[0].add_grade(85.0) {
+        eprintln!("Error: {}", e);
+    }
+    if let Err(e) = students[0].add_grade(92.0) {
+        eprintln!("Error: {}", e);
+    }
+    
+    // Add grades for Bob
+    if let Err(e) = students[1].add_grade(75.0) {
+        eprintln!("Error: {}", e);
+    }
+    if let Err(e) = students[1].add_grade(88.0) {
+        eprintln!("Error: {}", e);
+    }
+    
+    // Generate reports
+    for student in &students {
+        println!("\n{}", student.generate_report());
+    }
+}
+```
+</details>
+
+## Practice Projects
+
+1. **Number Guessing Game**
+   - Create a game that generates a random number
+   - Accept user input and provide feedback
+   - Use loops, conditionals, and error handling
+
+2. **Temperature Converter**
+   - Create a command-line temperature converter
+   - Support Celsius, Fahrenheit, and Kelvin
+   - Use functions, match expressions, and error handling
+
+3. **Simple Calculator**
+   - Implement a basic calculator
+   - Support addition, subtraction, multiplication, and division
+   - Handle invalid inputs and division by zero
+
+## Common Mistakes and Solutions
+
+<Callout type="warn" title="Common Pitfalls">
+1. **Forgetting type annotations when needed**
+   ```rust
+   let guess = "42".parse();  // Error: type annotation needed
+   let guess: i32 = "42".parse().expect("Not a number!");  // Correct
+   ```
+
+2. **Using uninitialized variables**
+   ```rust
+   let x: i32;
+   println!("{}", x);  // Error: used uninitialized variable
+   ```
+
+3. **Mismatched types in if expressions**
+   ```rust
+   let number = if true { 5 } else { "six" };  // Error: mismatched types
+   ```
+</Callout>
+
+## Additional Resources
+
+<Cards>
+  <Card
+    title="Rust Language Reference"
+    href="https://doc.rust-lang.org/reference/"
+  >
+    Detailed information about Rust's syntax and features
+  </Card>
+  
+  <Card
+    title="Rust Standard Library"
+    href="https://doc.rust-lang.org/std/"
+  >
+    Documentation for Rust's standard library
+  </Card>
+  
+  <Card
+    title="Rust by Example"
+    href="https://doc.rust-lang.org/rust-by-example/"
+  >
+    Learn Rust through interactive examples
+  </Card>
+</Cards>
+
+## Next Steps
+
+After completing this chapter, you should:
+- Understand Rust's basic syntax
+- Be able to work with variables and different data types
+- Know how to use control flow statements
+- Be able to define and use functions
+- Have practical experience through exercises and projects
+
+In the next chapter, we'll explore Rust's ownership system, which is one of its most unique and powerful features.
