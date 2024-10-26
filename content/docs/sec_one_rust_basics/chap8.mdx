@@ -1,0 +1,1282 @@
+---
+title: "Chapter 8: Functional Programming Features"
+description: "Learn Rust's functional programming features including closures, iterators, and functional combinators"
+---
+
+# Functional Programming Features
+
+## Closures
+
+Closures are anonymous functions that can capture their environment.
+
+### Basic Closure Syntax
+
+```rust title="Basic Closure Examples"
+fn main() {
+    // Basic closure
+    let add_one = |x| x + 1;
+    
+    // Closure with type annotations
+    let multiply: fn(i32, i32) -> i32 = |x, y| x * y;
+    
+    // Closure capturing environment
+    let multiplier = 10;
+    let multiply_by = |x| x * multiplier;
+    
+    println!("Add one: {}", add_one(5));
+    println!("Multiply: {}", multiply(4, 2));
+    println!("Multiply by 10: {}", multiply_by(5));
+}
+```
+
+### Practice Exercise: Basic Closures
+
+```rust title="exercises/basic_closures.rs"
+// Exercise 1: Create closures with different capture methods
+// (by reference, by mutable reference, by value)
+
+// Exercise 2: Implement a function that takes a closure as parameter
+// and uses it for custom sorting
+
+// Exercise 3: Create a closure that maintains state between calls
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::collections::HashMap;
+
+// Exercise 1 Solution
+fn test_capture_methods() {
+    // Capture by reference
+    let list = vec![1, 2, 3];
+    let print_list = || println!("List: {:?}", list);
+    print_list();
+    println!("Can still use list: {:?}", list);
+    
+    // Capture by mutable reference
+    let mut counter = 0;
+    let mut increment = || {
+        counter += 1;
+        println!("Counter: {}", counter);
+    };
+    increment();
+    increment();
+    println!("Final counter: {}", counter);
+    
+    // Capture by value (move)
+    let owned_string = String::from("hello");
+    let print_owned = move || println!("Owned: {}", owned_string);
+    print_owned();
+    // owned_string is no longer available here
+}
+
+// Exercise 2 Solution
+fn custom_sort<F>(mut numbers: Vec<i32>, comparator: F) -> Vec<i32>
+where
+    F: Fn(i32, i32) -> bool,
+{
+    numbers.sort_by(|a, b| {
+        if comparator(*a, *b) {
+            std::cmp::Ordering::Less
+        } else {
+            std::cmp::Ordering::Greater
+        }
+    });
+    numbers
+}
+
+// Exercise 3 Solution
+struct Counter {
+    count: i32,
+    increment_by: Box<dyn Fn(i32) -> i32>,
+}
+
+impl Counter {
+    fn new(increment_by: impl Fn(i32) -> i32 + 'static) -> Self {
+        Counter {
+            count: 0,
+            increment_by: Box::new(increment_by),
+        }
+    }
+    
+    fn increment(&mut self) -> i32 {
+        self.count = (self.increment_by)(self.count);
+        self.count
+    }
+}
+
+fn main() {
+    // Test Exercise 1
+    test_capture_methods();
+    
+    // Test Exercise 2
+    let numbers = vec![5, 2, 8, 1, 9];
+    
+    // Sort by value
+    let sorted = custom_sort(numbers.clone(), |a, b| a < b);
+    println!("Sorted ascending: {:?}", sorted);
+    
+    // Sort by distance from 5
+    let sorted_by_distance = custom_sort(numbers.clone(), |a, b| {
+        (a - 5).abs() < (b - 5).abs()
+    });
+    println!("Sorted by distance from 5: {:?}", sorted_by_distance);
+    
+    // Test Exercise 3
+    let mut counter = Counter::new(|x| x + 2);  // Increment by 2
+    println!("Count: {}", counter.increment());  // 2
+    println!("Count: {}", counter.increment());  // 4
+    println!("Count: {}", counter.increment());  // 6
+    
+    let mut fibonacci_counter = Counter::new(|x| {
+        if x == 0 { 1 }
+        else if x == 1 { 1 }
+        else {
+            let mut a = 1;
+            let mut b = 1;
+            for _ in 2..=x {
+                let temp = a + b;
+                a = b;
+                b = temp;
+            }
+            b
+        }
+    });
+    
+    println!("Fibonacci sequence:");
+    for _ in 0..5 {
+        println!("{}", fibonacci_counter.increment());
+    }
+}
+```
+</details>
+
+### Closure Traits
+
+Rust has three main traits for closures:
+
+1. `FnOnce` - Takes ownership and can be called once
+2. `FnMut` - Takes mutable reference and can modify environment
+3. `Fn` - Takes reference and can be called multiple times
+
+```rust title="Closure Traits Example"
+fn execute_once<F>(f: F)
+where
+    F: FnOnce() -> String,
+{
+    println!("Result: {}", f());
+}
+
+fn execute_mut<F>(mut f: F)
+where
+    F: FnMut() -> i32,
+{
+    println!("First call: {}", f());
+    println!("Second call: {}", f());
+}
+
+fn execute<F>(f: F)
+where
+    F: Fn() -> i32,
+{
+    println!("First call: {}", f());
+    println!("Second call: {}", f());
+}
+```
+
+### Practice Exercise: Closure Traits
+
+```rust title="exercises/closure_traits.rs"
+// Exercise 1: Implement functions that work with different closure traits
+// and demonstrate when each should be used
+
+// Exercise 2: Create a struct that stores different types of closures
+// and uses them appropriately
+
+// Exercise 3: Implement a function that combines multiple closures
+// with different trait bounds
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+// Exercise 1 Solution
+fn consume_value<F>(f: F)
+where
+    F: FnOnce(String) -> String,
+{
+    let s = String::from("Hello");
+    println!("Result: {}", f(s));
+}
+
+fn modify_value<F>(mut f: F, mut x: i32)
+where
+    F: FnMut(&mut i32),
+{
+    f(&mut x);
+    println!("Modified value: {}", x);
+}
+
+fn read_value<F>(f: F, x: &i32)
+where
+    F: Fn(&i32) -> i32,
+{
+    println!("Computed value: {}", f(x));
+}
+
+// Exercise 2 Solution
+struct ClosureStore<T> {
+    once: Option<Box<dyn FnOnce() -> T>>,
+    mut_closure: Box<dyn FnMut() -> T>,
+    regular: Box<dyn Fn() -> T>,
+}
+
+impl<T> ClosureStore<T> {
+    fn new(
+        once: impl FnOnce() -> T + 'static,
+        mut_closure: impl FnMut() -> T + 'static,
+        regular: impl Fn() -> T + 'static,
+    ) -> Self {
+        ClosureStore {
+            once: Some(Box::new(once)),
+            mut_closure: Box::new(mut_closure),
+            regular: Box::new(regular),
+        }
+    }
+    
+    fn execute_once(&mut self) -> Option<T> {
+        self.once.take().map(|f| f())
+    }
+    
+    fn execute_mut(&mut self) -> T {
+        (self.mut_closure)()
+    }
+    
+    fn execute_regular(&self) -> T {
+        (self.regular)()
+    }
+}
+
+// Exercise 3 Solution
+struct Pipeline<T> {
+    transforms: Vec<Box<dyn Fn(T) -> T>>,
+}
+
+impl<T> Pipeline<T> {
+    fn new() -> Self {
+        Pipeline {
+            transforms: Vec::new(),
+        }
+    }
+    
+    fn add_transform(&mut self, transform: impl Fn(T) -> T + 'static) {
+        self.transforms.push(Box::new(transform));
+    }
+    
+    fn execute(&self, initial: T) -> T {
+        self.transforms.iter().fold(initial, |acc, transform| {
+            transform(acc)
+        })
+    }
+}
+
+fn main() {
+    // Test Exercise 1
+    consume_value(|s| s + " World!");
+    
+    let mut sum = 0;
+    modify_value(|x| *x += 5, 10);
+    
+    read_value(|x| x * 2, &10);
+    
+    // Test Exercise 2
+    let mut store = ClosureStore::new(
+        || String::from("once"),
+        || String::from("mut"),
+        || String::from("regular"),
+    );
+    
+    println!("Once: {:?}", store.execute_once());
+    println!("Once again: {:?}", store.execute_once()); // None
+    println!("Mut: {}", store.execute_mut());
+    println!("Regular: {}", store.execute_regular());
+    
+    // Test Exercise 3
+    let mut pipeline = Pipeline::new();
+    
+    pipeline.add_transform(|x: i32| x + 1);
+    pipeline.add_transform(|x| x * 2);
+    pipeline.add_transform(|x| x - 3);
+    
+    let result = pipeline.execute(5);
+    println!("Pipeline result: {}", result); // ((5 + 1) * 2) - 3 = 9
+    
+    // String pipeline example
+    let mut string_pipeline = Pipeline::new();
+    string_pipeline.add_transform(|s: String| s + " World");
+    string_pipeline.add_transform(|s| s + "!");
+    string_pipeline.add_transform(|s| s.to_uppercase());
+    
+    let result = string_pipeline.execute(String::from("Hello"));
+    println!("String pipeline result: {}", result);
+}
+```
+</details>
+
+## Iterators
+
+Iterators are a powerful tool in Rust for working with sequence data.
+
+### Basic Iterator Usage
+
+```rust title="Basic Iterator Example"
+fn main() {
+    let numbers = vec![1, 2, 3, 4, 5];
+    
+    // Basic iteration
+    for num in &numbers {
+        println!("{}", num);
+    }
+    
+    // Using iterator methods
+    let sum: i32 = numbers.iter().sum();
+    let doubled: Vec<i32> = numbers.iter().map(|x| x * 2).collect();
+    
+    println!("Sum: {}", sum);
+    println!("Doubled: {:?}", doubled);
+}
+```
+
+### Practice Exercise: Basic Iterators
+
+```rust title="exercises/basic_iterators.rs"
+// Exercise 1: Implement custom iterator methods (map, filter, fold)
+// from scratch to understand how they work
+
+// Exercise 2: Create an iterator adapter that works with windows
+// of elements (e.g., pairs or triplets)
+
+// Exercise 3: Implement an iterator that generates a sequence
+// (e.g., Fibonacci sequence)
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+// Exercise 1 Solution
+struct MyMap<I, F> {
+    iter: I,
+    mapper: F,
+}
+
+impl<I, F, B> Iterator for MyMap<I, F>
+where
+    I: Iterator,
+    F: FnMut(I::Item) -> B,
+{
+    type Item = B;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(&mut self.mapper)
+    }
+}
+
+struct MyFilter<I, P> {
+    iter: I,
+    predicate: P,
+}
+
+impl<I, P> Iterator for MyFilter<I, P>
+where
+    I: Iterator,
+    P: FnMut(&I::Item) -> bool,
+{
+    type Item = I::Item;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(item) = self.iter.next() {
+            if (self.predicate)(&item) {
+                return Some(item);
+            }
+        }
+        None
+    }
+}
+
+trait MyIteratorExt: Iterator {
+    fn my_map<B, F>(self, mapper: F) -> MyMap<Self, F>
+    where
+        Self: Sized,
+        F: FnMut(Self::Item) -> B,
+    {
+        MyMap {
+            iter: self,
+            mapper,
+        }
+    }
+    
+    fn my_filter<P>(self, predicate: P) -> MyFilter<Self, P>
+    where
+        Self: Sized,
+        P: FnMut(&Self::Item) -> bool,
+    {
+        MyFilter {
+            iter: self,
+            predicate,
+        }
+    }
+    
+    fn my_fold<B, F>(mut self, init: B, mut f: F) -> B
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> B,
+    {
+        let mut accum = init;
+        while let Some(item) = self.next() {
+            accum = f(accum, item);
+        }
+        accum
+    }
+}
+
+impl<T: Iterator> MyIteratorExt for T {}
+
+// Exercise 2 Solution
+struct Windows<I: Iterator> {
+    iter: I,
+    window_size: usize,
+    buffer: Vec<I::Item>,
+}
+
+impl<I> Windows<I>
+where
+    I: Iterator,
+    I::Item: Clone,
+{
+    fn new(iter: I, window_size: usize) -> Self {
+        Windows {
+            iter,
+            window_size,
+            buffer: Vec::new(),
+        }
+    }
+}
+
+impl<I> Iterator for Windows<I>
+where
+    I: Iterator,
+    I::Item: Clone,
+{
+    type Item = Vec<I::Item>;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.buffer.len() < self.window_size {
+            if let Some(item) = self.iter.next() {
+                self.buffer.push(item);
+            } else if !self.buffer.is_empty() {
+                let result = self.buffer.clone();
+                self.buffer.clear();
+                return Some(result);
+            } else {
+                return None;
+            }
+        }
+        
+        let result = self.buffer.clone();
+        self.buffer.remove(0);
+        Some(result)
+    }
+}
+
+// Exercise 3 Solution
+struct Fibonacci {
+    curr: u64,
+    next: u64,
+}
+
+impl Fibonacci {
+    fn new() -> Self {
+        Fibonacci { curr: 0, next: 1 }
+    }
+}
+
+impl Iterator for Fibonacci {
+    type Item = u64;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.curr;
+        
+        self.curr = self.next;
+        self.next = current + self.next;
+        
+        Some(current)
+    }
+}
+
+fn main() {
+    // Test Exercise 1
+    let numbers = vec![1, 2, 3, 4, 5];
+    
+    // Test my_map
+    let doubled: Vec<i32> = numbers.iter()
+        .my_map(|x| x * 2)
+        .collect();
+    println!("Doubled: {:?}", doubled);
+    
+    // Test my_filter
+    let evens: Vec<&i32> = numbers.iter()
+        .my_filter(|x| *x % 2 == 0)
+        .collect();
+    println!("Evens: {:?}", evens);
+    
+    // Test my_fold
+    let sum = numbers.iter()
+        .my_fold(0, |acc, x| acc + x);
+    println!("Sum: {}", sum);
+    
+    // Test Exercise 2
+    let numbers = vec![1, 2, 3, 4, 5, 6];
+    let windows = Windows::new(numbers.into_iter(), 3);
+    
+    for window in windows {
+        println!("Window: {:?}", window);
+    }
+    
+    // Test Exercise 3
+    let fib = Fibonacci::new();
+    let first_10: Vec<u64> = fib.take(10).collect();
+    println!("First 10 Fibonacci numbers: {:?}", first_10);
+}
+```
+</details>
+
+### Iterator Adaptors
+
+Iterator adaptors are methods that transform an iterator into another iterator.
+
+```rust title="Iterator Adaptor Examples"
+fn main() {
+    let numbers = vec![1, 2, 3, 4, 5];
+    
+    // map and filter
+    let processed: Vec<i32> = numbers.iter()
+        .map(|x| x * 2)
+        .filter(|x| x > &5)
+        .collect();
+    
+    // enumerate and filter_map
+    let with_index: Vec<(usize, i32)> = numbers.iter()
+        .enumerate()
+        .filter_map(|(i, &x)| if x % 2 == 0 {
+            Some((i, x * 3))
+        } else {
+            None
+        })
+        .collect();
+        
+    println!("Processed: {:?}", processed);
+    println!("With index: {:?}", with_index);
+}
+```
+
+### Practice Exercise: Iterator Adaptors
+
+```rust title="exercises/iterator_adaptors.rs"
+// Exercise 1: Implement a data processing pipeline using multiple
+// iterator adaptors
+
+// Exercise 2: Create a custom iterator adaptor that transforms
+// elements based on their position
+
+// Exercise 3: Use iterator adaptors to implement a simple
+// text processing system
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::collections::HashMap;
+
+// Exercise 1 Solution
+#[derive(Debug)]
+struct DataPoint {
+    value: f64,
+    timestamp: u64,
+}
+
+fn process_data_points(data: Vec<DataPoint>) -> Vec<f64> {
+    data.into_iter()
+        .filter(|point| point.timestamp > 1000)  // Filter old data
+        .map(|point| point.value)                // Extract values
+        .filter(|&value| value >= 0.0)           // Remove negative values
+        .map(|value| value * 2.0)                // Double values
+        .collect()
+}
+
+// Exercise 2 Solution
+struct WithPosition<I> {
+    iter: I,
+    position: usize,
+}
+
+impl<I: Iterator> Iterator for WithPosition<I> {
+    type Item = (I::Item, usize);
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|item| {
+            let pos = self.position;
+            self.position += 1;
+            (item, pos)
+        })
+    }
+}
+
+trait PositionAdaptor: Iterator {
+    fn with_position(self) -> WithPosition<Self>
+    where
+        Self: Sized,
+    {
+        WithPosition {
+            iter: self,
+            position: 0,
+        }
+    }
+}
+
+impl<T: Iterator> PositionAdaptor for T {}
+
+// Exercise 3 Solution
+#[derive(Debug)]
+struct ProcessedText {
+    word_count: usize,
+    char_frequency: HashMap<char, usize>,
+    longest_word: String,
+}
+
+fn process_text(text: &str) -> ProcessedText {
+    let words: Vec<&str> = text.split_whitespace().collect();
+    
+    let word_count = words.len();
+    
+    let char_frequency = text.chars()
+        .filter(|c| c.is_alphabetic())
+        .map(|c| c.to_lowercase().next().unwrap())
+        .fold(HashMap::new(), |mut map, c| {
+            *map.entry(c).or_insert(0) += 1;
+            map
+        });
+    
+    let longest_word = words.into_iter()
+        .max_by_key(|word| word.len())
+        .unwrap_or("")
+        .to_string();
+    
+    ProcessedText {
+        word_count,
+        char_frequency,
+        longest_word,
+    }
+}
+
+fn main() {
+    // Test Exercise 1
+    let data = vec![
+        DataPoint { value: 1.0, timestamp: 1001 },
+        DataPoint { value: -2.0, timestamp: 1002 },
+        DataPoint { value: 3.0, timestamp: 999 },
+        DataPoint { value: 4.0, timestamp: 1003 },
+    ];
+    
+    let processed = process_data_points(data);
+    println!("Processed data: {:?}", processed);
+    
+    // Test Exercise 2
+    let numbers = vec![1, 2, 3, 4, 5];
+    
+    let with_position: Vec<_> = numbers.iter()
+        .with_position()
+        .map(|(num, pos)| (num * (pos as i32), pos))
+        .collect();
+    
+    println!("With position: {:?}", with_position);
+    
+    // Test Exercise 3
+    let text = "The quick brown fox jumps over the lazy dog";
+    let processed = process_text(text);
+    
+    println!("Processed text: {:?}", processed);
+}
+```
+</details>
+
+### IntoIterator Trait
+
+The `IntoIterator` trait allows a type to be converted into an iterator.
+
+```rust title="IntoIterator Example"
+struct Counter {
+    count: usize,
+    max: usize,
+}
+
+impl IntoIterator for Counter {
+    type Item = usize;
+    type IntoIter = CounterIter;
+    
+    fn into_iter(self) -> Self::IntoIter {
+        CounterIter {
+            current: self.count,
+            max: self.max,
+        }
+    }
+}
+
+struct CounterIter {
+    current: usize,
+    max: usize,
+}
+
+impl Iterator for CounterIter {
+    type Item = usize;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current < self.max {
+            let result = Some(self.current);
+            self.current += 1;
+            result
+        } else {
+            None
+        }
+    }
+}
+```
+
+## Functional Combinators
+
+Functional combinators are higher-order functions that compose operations.
+
+### Common Combinators
+
+```rust title="Common Combinators Example"
+fn main() {
+    let numbers = vec![1, 2, 3, 4, 5];
+    
+    // Map-Reduce pattern
+    let sum: i32 = numbers.iter()
+        .map(|x| x * x)
+        .reduce(|acc, x| acc + x)
+        .unwrap_or(0);
+    
+    // Filter-Map chain
+    let even_squares: Vec<i32> = numbers.iter()
+        .filter(|x| *x % 2 == 0)
+        .map(|x| x * x)
+        .collect();
+        
+    println!("Sum of squares: {}", sum);
+    println!("Squares of even numbers: {:?}", even_squares);
+}
+```
+
+### Practice Exercise: Functional Combinators
+
+```rust title="exercises/functional_combinators.rs"
+// Exercise 1: Implement map-reduce operations for custom data processing
+// Calculate statistics (mean, standard deviation) using combinators
+
+// Exercise 2: Create a data transformation pipeline using combinators
+// Process and filter complex data structures
+
+// Exercise 3: Implement functional combinators for a tree structure
+// Traverse and transform tree data using functional patterns
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::ops::Add;
+
+// Exercise 1 Solution
+#[derive(Debug, Clone, Copy)]
+struct Statistics {
+    count: usize,
+    mean: f64,
+    variance: f64,
+}
+
+impl Statistics {
+    fn new() -> Self {
+        Statistics {
+            count: 0,
+            mean: 0.0,
+            variance: 0.0,
+        }
+    }
+    
+    fn update(&mut self, value: f64) {
+        self.count += 1;
+        let delta = value - self.mean;
+        self.mean += delta / self.count as f64;
+        let delta2 = value - self.mean;
+        self.variance += delta * delta2;
+    }
+    
+    fn std_dev(&self) -> f64 {
+        if self.count > 1 {
+            (self.variance / (self.count - 1) as f64).sqrt()
+        } else {
+            0.0
+        }
+    }
+}
+
+fn calculate_statistics<I>(iter: I) -> Statistics
+where
+    I: Iterator<Item = f64>,
+{
+    iter.fold(Statistics::new(), |mut stats, x| {
+        stats.update(x);
+        stats
+    })
+}
+
+// Exercise 2 Solution
+#[derive(Debug, Clone)]
+struct DataRecord {
+    id: u32,
+    value: f64,
+    tags: Vec<String>,
+}
+
+fn process_records<I>(records: I) -> Vec<DataRecord>
+where
+    I: Iterator<Item = DataRecord>,
+{
+    records
+        .filter(|record| !record.tags.is_empty())
+        .map(|mut record| {
+            record.value *= 2.0;
+            record.tags.sort();
+            record.tags.dedup();
+            record
+        })
+        .filter(|record| record.value > 0.0)
+        .collect()
+}
+
+// Exercise 3 Solution
+#[derive(Debug, Clone)]
+enum Tree<T> {
+    Leaf(T),
+    Node(Box<Tree<T>>, Box<Tree<T>>),
+}
+
+impl<T> Tree<T> {
+    fn map<U, F>(self, f: F) -> Tree<U>
+    where
+        F: Fn(T) -> U,
+    {
+        match self {
+            Tree::Leaf(value) => Tree::Leaf(f(value)),
+            Tree::Node(left, right) => Tree::Node(
+                Box::new(left.map(&f)),
+                Box::new(right.map(&f)),
+            ),
+        }
+    }
+    
+    fn fold<U, F>(&self, init: U, f: F) -> U
+    where
+        F: Fn(U, &T) -> U,
+    {
+        match self {
+            Tree::Leaf(value) => f(init, value),
+            Tree::Node(left, right) => {
+                let left_result = left.fold(init, &f);
+                right.fold(left_result, &f)
+            }
+        }
+    }
+    
+    fn traverse<F>(&self, f: F)
+    where
+        F: Fn(&T),
+    {
+        match self {
+            Tree::Leaf(value) => f(value),
+            Tree::Node(left, right) => {
+                left.traverse(&f);
+                right.traverse(&f);
+            }
+        }
+    }
+}
+
+fn main() {
+    // Test Exercise 1
+    let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    let stats = calculate_statistics(data.into_iter());
+    println!("Statistics:");
+    println!("Count: {}", stats.count);
+    println!("Mean: {}", stats.mean);
+    println!("Standard Deviation: {}", stats.std_dev());
+    
+    // Test Exercise 2
+    let records = vec![
+        DataRecord {
+            id: 1,
+            value: 10.0,
+            tags: vec!["a".to_string(), "b".to_string(), "b".to_string()],
+        },
+        DataRecord {
+            id: 2,
+            value: -5.0,
+            tags: vec!["c".to_string()],
+        },
+        DataRecord {
+            id: 3,
+            value: 15.0,
+            tags: vec![],
+        },
+    ];
+    
+    let processed = process_records(records.into_iter());
+    println!("\nProcessed Records: {:?}", processed);
+    
+    // Test Exercise 3
+    let tree = Tree::Node(
+        Box::new(Tree::Leaf(1)),
+        Box::new(Tree::Node(
+            Box::new(Tree::Leaf(2)),
+            Box::new(Tree::Leaf(3)),
+        )),
+    );
+    
+    // Map: multiply all values by 2
+    let doubled = tree.map(|x| x * 2);
+    println!("\nDoubled tree: {:?}", doubled);
+    
+    // Fold: sum all values
+    let sum = tree.fold(0, |acc, x| acc + x);
+    println!("Sum of tree values: {}", sum);
+    
+    // Traverse: print all values
+    println!("Tree values:");
+    tree.traverse(|x| println!("{}", x));
+}
+```
+</details>
+
+## Integration Project: Data Processing Pipeline
+
+Let's combine all the functional programming concepts in a practical project:
+
+```rust title="exercises/data_pipeline.rs"
+// Create a data processing pipeline that:
+// 1. Reads and parses input data
+// 2. Transforms data using functional combinators
+// 3. Filters and validates data
+// 4. Aggregates results
+// 5. Handles errors gracefully
+
+// TODO: Implement the data pipeline
+
+fn main() {
+    // TODO: Test the data pipeline
+}
+```
+
+<details>
+<summary>Show Complete Solution</summary>
+
+```rust
+use std::collections::HashMap;
+use std::error::Error;
+use std::fmt;
+
+// Data structures
+#[derive(Debug, Clone)]
+struct InputRecord {
+    timestamp: u64,
+    device_id: String,
+    value: f64,
+    tags: Vec<String>,
+}
+
+#[derive(Debug)]
+struct ProcessedRecord {
+    device_id: String,
+    normalized_value: f64,
+    valid_tags: Vec<String>,
+}
+
+#[derive(Debug)]
+struct AggregatedResult {
+    device_stats: HashMap<String, DeviceStats>,
+    total_records: usize,
+    invalid_records: usize,
+}
+
+#[derive(Debug)]
+struct DeviceStats {
+    count: usize,
+    mean: f64,
+    max_value: f64,
+    min_value: f64,
+}
+
+// Error types
+#[derive(Debug)]
+enum ProcessingError {
+    InvalidTimestamp(u64),
+    InvalidValue(f64),
+    MissingDeviceId,
+}
+
+impl fmt::Display for ProcessingError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ProcessingError::InvalidTimestamp(ts) => 
+                write!(f, "Invalid timestamp: {}", ts),
+            ProcessingError::InvalidValue(val) => 
+                write!(f, "Invalid value: {}", val),
+            ProcessingError::MissingDeviceId => 
+                write!(f, "Missing device ID"),
+        }
+    }
+}
+
+impl Error for ProcessingError {}
+
+// Pipeline implementation
+struct DataPipeline {
+    min_timestamp: u64,
+    max_value: f64,
+}
+
+impl DataPipeline {
+    fn new(min_timestamp: u64, max_value: f64) -> Self {
+        DataPipeline {
+            min_timestamp,
+            max_value,
+        }
+    }
+    
+    fn process_data<I>(&self, input: I) -> AggregatedResult
+    where
+        I: Iterator<Item = InputRecord>,
+    {
+        let processed_records: Vec<_> = input
+            .filter_map(|record| self.validate_record(record).ok())
+            .map(|record| self.transform_record(record))
+            .collect();
+        
+        self.aggregate_results(processed_records)
+    }
+    
+    fn validate_record(&self, record: InputRecord) 
+        -> Result<InputRecord, ProcessingError> 
+    {
+        if record.timestamp < self.min_timestamp {
+            return Err(ProcessingError::InvalidTimestamp(record.timestamp));
+        }
+        
+        if record.value.abs() > self.max_value {
+            return Err(ProcessingError::InvalidValue(record.value));
+        }
+        
+        if record.device_id.is_empty() {
+            return Err(ProcessingError::MissingDeviceId);
+        }
+        
+        Ok(record)
+    }
+    
+    fn transform_record(&self, record: InputRecord) -> ProcessedRecord {
+        ProcessedRecord {
+            device_id: record.device_id,
+            normalized_value: record.value / self.max_value,
+            valid_tags: record.tags
+                .into_iter()
+                .filter(|tag| !tag.is_empty())
+                .collect(),
+        }
+    }
+    
+    fn aggregate_results(&self, records: Vec<ProcessedRecord>) -> AggregatedResult {
+        let mut device_stats: HashMap<String, DeviceStats> = HashMap::new();
+        
+        for record in &records {
+            let stats = device_stats.entry(record.device_id.clone())
+                .or_insert(DeviceStats {
+                    count: 0,
+                    mean: 0.0,
+                    max_value: f64::MIN,
+                    min_value: f64::MAX,
+                });
+            
+            stats.count += 1;
+            stats.mean = (stats.mean * (stats.count - 1) as f64 
+                + record.normalized_value) / stats.count as f64;
+            stats.max_value = stats.max_value.max(record.normalized_value);
+            stats.min_value = stats.min_value.min(record.normalized_value);
+        }
+        
+        AggregatedResult {
+            device_stats,
+            total_records: records.len(),
+            invalid_records: 0,  // Would be calculated in a real implementation
+        }
+    }
+}
+
+fn main() {
+    // Create test data
+    let input_data = vec![
+        InputRecord {
+            timestamp: 1000,
+            device_id: "device1".to_string(),
+            value: 42.0,
+            tags: vec!["sensor".to_string(), "temperature".to_string()],
+        },
+        InputRecord {
+            timestamp: 1001,
+            device_id: "device2".to_string(),
+            value: 25.5,
+            tags: vec!["sensor".to_string(), "pressure".to_string()],
+        },
+        InputRecord {
+            timestamp: 999,  // Invalid timestamp
+            device_id: "device1".to_string(),
+            value: 30.0,
+            tags: vec!["sensor".to_string()],
+        },
+    ];
+    
+    // Create and run pipeline
+    let pipeline = DataPipeline::new(1000, 100.0);
+    let results = pipeline.process_data(input_data.into_iter());
+    
+    // Print results
+    println!("Processing Results:");
+    println!("Total records processed: {}", results.total_records);
+    println!("Invalid records: {}", results.invalid_records);
+    println!("\nDevice Statistics:");
+    
+    for (device_id, stats) in results.device_stats {
+        println!("\nDevice: {}", device_id);
+        println!("  Count: {}", stats.count);
+        println!("  Mean: {:.4}", stats.mean);
+        println!("  Max: {:.4}", stats.max_value);
+        println!("  Min: {:.4}", stats.min_value);
+    }
+}
+```
+</details>
+
+## Best Practices and Common Patterns
+
+<Callout type="info" title="Functional Programming Best Practices">
+1. Use immutable data when possible
+2. Prefer iterator chains to explicit loops
+3. Use appropriate combinators for clarity
+4. Break complex operations into smaller, composable functions
+5. Consider performance implications of long iterator chains
+6. Use type inference to keep code clean
+</Callout>
+
+## Common Mistakes and Solutions
+
+<Callout type="warn" title="Common Pitfalls">
+1. **Collecting too early**
+   ```rust
+   // Inefficient:
+   let v: Vec<i32> = numbers.iter().collect();
+   let result: Vec<i32> = v.iter().map(|x| x * 2).collect();
+   
+   // Better:
+   let result: Vec<i32> = numbers.iter()
+       .map(|x| x * 2)
+       .collect();
+   ```
+
+2. **Unnecessary cloning**
+   ```rust
+   // Inefficient:
+   let sum: i32 = numbers.iter()
+       .map(|x| x.clone())
+       .sum();
+   
+   // Better:
+   let sum: i32 = numbers.iter()
+       .copied()  // or .cloned() for Clone types
+       .sum();
+   ```
+
+3. **Not using the right combinator**
+   ```rust
+   // Verbose:
+   let result: Option<i32> = numbers.iter()
+       .filter(|x| x.is_some())
+       .map(|x| x.unwrap())
+       .next();
+   
+   // Better:
+   let result: Option<i32> = numbers.iter()
+       .flatten()
+       .next();
+   ```
+</Callout>
+
+## Next Steps
+
+After completing this chapter, you should be able to:
+- Work effectively with closures
+- Use and create iterators
+- Apply functional programming patterns
+- Build data processing pipelines
+- Understand when to use functional approaches
+
+The next chapter will cover Smart Pointers and Memory Management.
+
+<Cards>
+  <Card
+    title="Iterator Documentation"
+    href="https://doc.rust-lang.org/std/iter/trait.Iterator.html"
+  >
+    Official Rust Iterator documentation
+  </Card>
+  
+  <Card
+    title="Functional Language Features"
+    href="https://doc.rust-lang.org/book/ch13-00-functional-features.html"
+  >
+    Rust Book chapter on functional programming
+  </Card>
+</Cards>
