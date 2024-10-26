@@ -1,0 +1,1150 @@
+---
+title: "Chapter 9: Smart Pointers and Memory Management"
+description: "Learn about Rust's smart pointers and memory management features essential for Halo2 development"
+---
+
+# Smart Pointers and Memory Management
+
+## Box&lt;T&gt;: Heap Allocation
+
+Box&lt;T&gt; is the simplest smart pointer that allows putting data on the heap.
+
+```rust title="Basic Box Usage"
+// Recursive type definition using Box
+#[derive(Debug)]
+enum List<T> {
+    Cons(T, Box<List<T>>),
+    Nil,
+}
+
+fn main() {
+    // Basic heap allocation
+    let boxed_value = Box::new(42);
+    println!("Boxed value: {}", boxed_value);
+    
+    // Recursive data structure
+    let list = List::Cons(1,
+        Box::new(List::Cons(2,
+            Box::new(List::Cons(3,
+                Box::new(List::Nil))))));
+                
+    println!("List: {:?}", list);
+}
+```
+
+### Practice Exercise: Box&lt;T&gt;
+
+```rust title="exercises/box_exercises.rs"
+// Exercise 1: Implement a binary tree structure using Box
+
+// Exercise 2: Create a recursive type that represents
+// mathematical expressions
+
+// Exercise 3: Implement a custom smart pointer similar to Box
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+// Exercise 1 Solution
+#[derive(Debug)]
+enum BinaryTree<T> {
+    Node {
+        value: T,
+        left: Box<BinaryTree<T>>,
+        right: Box<BinaryTree<T>>,
+    },
+    Empty,
+}
+
+impl<T: Ord> BinaryTree<T> {
+    fn new() -> Self {
+        BinaryTree::Empty
+    }
+    
+    fn insert(&mut self, value: T) {
+        match self {
+            BinaryTree::Empty => {
+                *self = BinaryTree::Node {
+                    value,
+                    left: Box::new(BinaryTree::Empty),
+                    right: Box::new(BinaryTree::Empty),
+                }
+            }
+            BinaryTree::Node { ref value: node_value, ref mut left, ref mut right } => {
+                if value < *node_value {
+                    left.insert(value);
+                } else {
+                    right.insert(value);
+                }
+            }
+        }
+    }
+    
+    fn contains(&self, value: &T) -> bool {
+        match self {
+            BinaryTree::Empty => false,
+            BinaryTree::Node { value: node_value, left, right } => {
+                if value == node_value {
+                    true
+                } else if value < node_value {
+                    left.contains(value)
+                } else {
+                    right.contains(value)
+                }
+            }
+        }
+    }
+}
+
+// Exercise 2 Solution
+#[derive(Debug)]
+enum Expression {
+    Number(f64),
+    Add(Box<Expression>, Box<Expression>),
+    Subtract(Box<Expression>, Box<Expression>),
+    Multiply(Box<Expression>, Box<Expression>),
+    Divide(Box<Expression>, Box<Expression>),
+}
+
+impl Expression {
+    fn number(value: f64) -> Self {
+        Expression::Number(value)
+    }
+    
+    fn add(left: Expression, right: Expression) -> Self {
+        Expression::Add(Box::new(left), Box::new(right))
+    }
+    
+    fn subtract(left: Expression, right: Expression) -> Self {
+        Expression::Subtract(Box::new(left), Box::new(right))
+    }
+    
+    fn multiply(left: Expression, right: Expression) -> Self {
+        Expression::Multiply(Box::new(left), Box::new(right))
+    }
+    
+    fn divide(left: Expression, right: Expression) -> Self {
+        Expression::Divide(Box::new(left), Box::new(right))
+    }
+    
+    fn evaluate(&self) -> Result<f64, &'static str> {
+        match self {
+            Expression::Number(n) => Ok(*n),
+            Expression::Add(left, right) => {
+                Ok(left.evaluate()? + right.evaluate()?)
+            }
+            Expression::Subtract(left, right) => {
+                Ok(left.evaluate()? - right.evaluate()?)
+            }
+            Expression::Multiply(left, right) => {
+                Ok(left.evaluate()? * right.evaluate()?)
+            }
+            Expression::Divide(left, right) => {
+                let right_value = right.evaluate()?;
+                if right_value == 0.0 {
+                    Err("Division by zero")
+                } else {
+                    Ok(left.evaluate()? / right_value)
+                }
+            }
+        }
+    }
+}
+
+// Exercise 3 Solution
+struct MyBox<T>(T);
+
+impl<T> MyBox<T> {
+    fn new(value: T) -> Self {
+        MyBox(value)
+    }
+}
+
+impl<T> std::ops::Deref for MyBox<T> {
+    type Target = T;
+    
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> std::ops::DerefMut for MyBox<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<T> Drop for MyBox<T> {
+    fn drop(&mut self) {
+        println!("Dropping MyBox");
+    }
+}
+
+fn main() {
+    // Test Binary Tree
+    let mut tree = BinaryTree::new();
+    tree.insert(5);
+    tree.insert(3);
+    tree.insert(7);
+    tree.insert(1);
+    tree.insert(9);
+    
+    println!("Tree: {:?}", tree);
+    println!("Contains 3: {}", tree.contains(&3));
+    println!("Contains 4: {}", tree.contains(&4));
+    
+    // Test Expression
+    let expr = Expression::add(
+        Expression::multiply(
+            Expression::number(5.0),
+            Expression::number(2.0)
+        ),
+        Expression::divide(
+            Expression::number(10.0),
+            Expression::number(2.0)
+        )
+    );
+    
+    println!("Expression: {:?}", expr);
+    match expr.evaluate() {
+        Ok(result) => println!("Result: {}", result),
+        Err(e) => println!("Error: {}", e),
+    }
+    
+    // Test MyBox
+    let mut boxed = MyBox::new(42);
+    println!("MyBox value: {}", *boxed);
+    *boxed = 24;
+    println!("Modified MyBox value: {}", *boxed);
+}
+```
+</details>
+
+## Rc&lt;T&gt;: Reference Counted Smart Pointer
+
+Rc&lt;T&gt; enables multiple ownership by keeping track of the number of references to a value.
+
+```rust title="Rc Example"
+use std::rc::Rc;
+
+struct Node {
+    value: i32,
+    next: Option<Rc<Node>>,
+}
+
+fn main() {
+    let node3 = Rc::new(Node {
+        value: 3,
+        next: None,
+    });
+    
+    let node2 = Rc::new(Node {
+        value: 2,
+        next: Some(Rc::clone(&node3)),
+    });
+    
+    let node1 = Node {
+        value: 1,
+        next: Some(Rc::clone(&node2)),
+    };
+    
+    println!("Reference count of node2: {}", Rc::strong_count(&node2));
+}
+```
+
+### Practice Exercise: Reference Counting
+
+```rust title="exercises/rc_exercises.rs"
+// Exercise 1: Implement a graph structure using Rc
+// where nodes can have multiple parents
+
+// Exercise 2: Create a cache system that shares data
+// between multiple parts of the program
+
+// Exercise 3: Build a document structure where sections
+// can be shared between different documents
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::collections::HashMap;
+
+// Exercise 1 Solution
+#[derive(Debug)]
+struct GraphNode {
+    value: String,
+    neighbors: Vec<Rc<GraphNode>>,
+}
+
+impl GraphNode {
+    fn new(value: &str) -> Rc<GraphNode> {
+        Rc::new(GraphNode {
+            value: value.to_string(),
+            neighbors: Vec::new(),
+        })
+    }
+    
+    fn add_neighbor(node: &Rc<GraphNode>, neighbor: &Rc<GraphNode>) {
+        node.neighbors.push(Rc::clone(neighbor));
+    }
+    
+    fn print_neighbors(&self) {
+        println!("Neighbors of {}: ", self.value);
+        for neighbor in &self.neighbors {
+            println!("  - {}", neighbor.value);
+        }
+    }
+}
+
+// Exercise 2 Solution
+struct Cache {
+    data: HashMap<String, Rc<RefCell<String>>>,
+}
+
+impl Cache {
+    fn new() -> Self {
+        Cache {
+            data: HashMap::new(),
+        }
+    }
+    
+    fn get_or_insert(&mut self, key: &str, default: &str) -> Rc<RefCell<String>> {
+        if let Some(value) = self.data.get(key) {
+            Rc::clone(value)
+        } else {
+            let value = Rc::new(RefCell::new(default.to_string()));
+            self.data.insert(key.to_string(), Rc::clone(&value));
+            value
+        }
+    }
+    
+    fn update(&mut self, key: &str, new_value: &str) {
+        if let Some(value) = self.data.get(key) {
+            *value.borrow_mut() = new_value.to_string();
+        }
+    }
+}
+
+// Exercise 3 Solution
+#[derive(Debug)]
+struct Section {
+    title: String,
+    content: String,
+}
+
+impl Section {
+    fn new(title: &str, content: &str) -> Rc<Section> {
+        Rc::new(Section {
+            title: title.to_string(),
+            content: content.to_string(),
+        })
+    }
+}
+
+#[derive(Debug)]
+struct Document {
+    title: String,
+    sections: Vec<Rc<Section>>,
+}
+
+impl Document {
+    fn new(title: &str) -> Self {
+        Document {
+            title: title.to_string(),
+            sections: Vec::new(),
+        }
+    }
+    
+    fn add_section(&mut self, section: &Rc<Section>) {
+        self.sections.push(Rc::clone(section));
+    }
+    
+    fn print(&self) {
+        println!("Document: {}", self.title);
+        for section in &self.sections {
+            println!("Section: {}", section.title);
+            println!("{}\n", section.content);
+        }
+    }
+}
+
+fn main() {
+    // Test Graph
+    let node_a = GraphNode::new("A");
+    let node_b = GraphNode::new("B");
+    let node_c = GraphNode::new("C");
+    
+    GraphNode::add_neighbor(&node_a, &node_b);
+    GraphNode::add_neighbor(&node_a, &node_c);
+    GraphNode::add_neighbor(&node_b, &node_c);
+    
+    node_a.print_neighbors();
+    println!("Reference count of B: {}", Rc::strong_count(&node_b));
+    
+    // Test Cache
+    let mut cache = Cache::new();
+    
+    let value1 = cache.get_or_insert("key1", "initial value");
+    let value2 = cache.get_or_insert("key1", "other value");
+    
+    println!("Initial value: {}", value1.borrow());
+    cache.update("key1", "updated value");
+    println!("Updated value through cache: {}", value1.borrow());
+    println!("Same value through second reference: {}", value2.borrow());
+    
+    // Test Document System
+    let introduction = Section::new(
+        "Introduction",
+        "This is the introduction section."
+    );
+    
+    let methodology = Section::new(
+        "Methodology",
+        "This is the methodology section."
+    );
+    
+    let mut paper1 = Document::new("Research Paper 1");
+    paper1.add_section(&introduction);
+    paper1.add_section(&methodology);
+    
+    let mut paper2 = Document::new("Research Paper 2");
+    paper2.add_section(&introduction);
+    
+    println!("\nReference count of introduction: {}", Rc::strong_count(&introduction));
+    
+    paper1.print();
+    paper2.print();
+}
+```
+</details>
+
+## Arc&lt;T&gt; and Thread Safety
+
+Arc&lt;T&gt; (Atomic Reference Counting) is the thread-safe version of Rc&lt;T&gt;.
+
+```rust title="Arc Example"
+use std::sync::Arc;
+use std::thread;
+
+fn main() {
+    let data = Arc::new(vec![1, 2, 3, 4, 5]);
+    let mut handles = vec![];
+    
+    for i in 0..3 {
+        let data_clone = Arc::clone(&data);
+        let handle = thread::spawn(move || {
+            println!("Thread {}: {:?}", i, *data_clone);
+        });
+        handles.push(handle);
+    }
+    
+    for handle in handles {
+        handle.join().unwrap();
+    }
+}
+```
+
+### Practice Exercise: Thread-Safe Sharing
+
+```rust title="exercises/arc_exercises.rs"
+// Exercise 1: Implement a thread-safe counter that can be
+// shared between multiple threads
+
+// Exercise 2: Create a parallel processing system that
+// shares a large dataset between threads
+
+// Exercise 3: Build a thread-safe cache system using Arc
+// and other synchronization primitives
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::sync::{Arc, Mutex, RwLock};
+use std::thread;
+use std::time::Duration;
+use rand::Rng;
+
+// Exercise 1 Solution
+struct ThreadSafeCounter {
+    count: Arc<Mutex<i32>>,
+}
+
+impl ThreadSafeCounter {
+    fn new() -> Self {
+        ThreadSafeCounter {
+            count: Arc::new(Mutex::new(0)),
+        }
+    }
+    
+    fn increment(&self) {
+        let mut count = self.count.lock().unwrap();
+        *count += 1;
+    }
+    
+    fn get_count(&self) -> i32 {
+        *self.count.lock().unwrap()
+    }
+}
+
+// Exercise 2 Solution
+struct ParallelProcessor {
+    data: Arc<Vec<i32>>,
+    chunk_size: usize,
+}
+
+impl ParallelProcessor {
+    fn new(data: Vec<i32>, chunk_size: usize) -> Self {
+        ParallelProcessor {
+            data: Arc::new(data),
+            chunk_size,
+        }
+    }
+    
+    fn process_parallel<F, T>(&self, f: F) -> Vec<T>
+    where
+        F: Fn(&[i32]) -> T + Send + Sync + 'static,
+        T: Send + 'static,
+    {
+        let mut handles = vec![];
+        let data = Arc::clone(&self.data);
+        
+        for chunk in data.chunks(self.chunk_size) {
+            let f = Arc::new(f);
+            let chunk = chunk.to_vec();
+            
+            let handle = thread::spawn(move || {
+                f(&chunk)
+            });
+            
+            handles.push(handle);
+        }
+        
+        handles.into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect()
+    }
+}
+
+// Exercise 3 Solution
+struct ThreadSafeCache<K, V> {
+    data: Arc<RwLock<HashMap<K, V>>>,
+}
+
+impl<K: Eq + std::hash::Hash + Clone, V: Clone> ThreadSafeCache<K, V> {
+    fn new() -> Self {
+        ThreadSafeCache {
+            data: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+    
+    fn insert(&self, key: K, value: V) {
+        let mut data = self.data.write().unwrap();
+        data.insert(key, value);
+    }
+    
+    fn get(&self, key: &K) -> Option<V> {
+        let data = self.data.read().unwrap();
+        data.get(key).cloned()
+    }
+    
+    fn clear(&self) {
+        let mut data = self.data.write().unwrap();
+        data.clear();
+    }
+}
+
+fn main() {
+    // Test ThreadSafeCounter
+    let counter = Arc::new(ThreadSafeCounter::new());
+    let mut handles = vec![];
+    
+    for _ in 0..10 {
+        let counter_clone = Arc::clone(&counter);
+        let handle = thread::spawn(move || {
+            for _ in 0..100 {
+                counter_clone.increment();
+                thread::sleep(Duration::from_millis(1));
+            }
+        });
+        handles.push(handle);
+    }
+    
+    for handle in handles {
+        handle.join().unwrap();
+    }
+    
+    println!("Final count: {}", counter.get_count());
+    
+    // Test ParallelProcessor
+    let data: Vec<i32> = (0..1000).collect();
+    let processor = ParallelProcessor::new(data, 100);
+    
+    let results = processor.process_parallel(|chunk| {
+        chunk.iter().sum::<i32>()
+    });
+    
+    println!("Sum of all chunks: {}", results.iter().sum::<i32>());
+    
+    // Test ThreadSafeCache
+    let cache = Arc::new(ThreadSafeCache::new());
+    let mut handles = vec![];
+    
+    for i in 0..5 {
+        let cache_clone = Arc::clone(&cache);
+        let handle = thread::spawn(move || {
+            let mut rng = rand::thread_rng();
+            for j in 0..10 {
+                let key = format!("key_{}", j);
+                let value = rng.gen::<u32>();
+                cache_clone.insert(key.clone(), value);
+                
+                if let Some(val) = cache_clone.get(&key) {
+                    println!("Thread {}: {} = {}", i, key, val);
+                }
+                
+                thread::sleep(Duration::from_millis(10));
+            }
+        });
+        handles.push(handle);
+    }
+    
+    for handle in handles {
+        handle.join().unwrap();
+    }
+}
+```
+</details>
+
+## Interior Mutability: RefCell&lt;T&gt; and Cell&lt;T&gt;
+
+These types allow mutating data even when there are immutable references to that data.
+
+```rust title="RefCell Example"
+use std::cell::RefCell;
+
+struct Logger {
+    log_count: RefCell<u32>,
+}
+
+impl Logger {
+    fn new() -> Self {
+        Logger {
+            log_count: RefCell::new(0),
+        }
+    }
+    
+    fn log(&self, message: &str) {
+        let mut count = self.log_count.borrow_mut();
+        *count += 1;
+        println!("[{}] {}", count, message);
+    }
+}
+
+fn main() {
+    let logger = Logger::new();
+    logger.log("First message");
+    logger.log("Second message");
+}
+```
+
+### Practice Exercise: Interior Mutability
+
+```rust title="exercises/interior_mutability.rs"
+// Exercise 1: Implement a mutable cache system that uses RefCell
+// to store and update values
+
+// Exercise 2: Create a logging system that can track statistics
+// without requiring mutable references
+
+// Exercise 3: Build a callback system that can modify its state
+// when callbacks are triggered
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::cell::{RefCell, Cell};
+use std::collections::HashMap;
+use std::rc::Rc;
+
+// Exercise 1 Solution
+struct Cache<K, V> {
+    store: RefCell<HashMap<K, V>>,
+    hits: Cell<usize>,
+    misses: Cell<usize>,
+}
+
+impl<K: std::hash::Hash + Eq + Clone, V: Clone> Cache<K, V> {
+    fn new() -> Self {
+        Cache {
+            store: RefCell::new(HashMap::new()),
+            hits: Cell::new(0),
+            misses: Cell::new(0),
+        }
+    }
+    
+    fn get(&self, key: &K) -> Option<V> {
+        let store = self.store.borrow();
+        match store.get(key) {
+            Some(value) => {
+                self.hits.set(self.hits.get() + 1);
+                Some(value.clone())
+            }
+            None => {
+                self.misses.set(self.misses.get() + 1);
+                None
+            }
+        }
+    }
+    
+    fn insert(&self, key: K, value: V) {
+        self.store.borrow_mut().insert(key, value);
+    }
+    
+    fn stats(&self) -> (usize, usize) {
+        (self.hits.get(), self.misses.get())
+    }
+}
+
+// Exercise 2 Solution
+#[derive(Default)]
+struct LogStats {
+    info_count: Cell<usize>,
+    warn_count: Cell<usize>,
+    error_count: Cell<usize>,
+}
+
+struct Logger {
+    stats: LogStats,
+    messages: RefCell<Vec<String>>,
+}
+
+impl Logger {
+    fn new() -> Self {
+        Logger {
+            stats: LogStats::default(),
+            messages: RefCell::new(Vec::new()),
+        }
+    }
+    
+    fn info(&self, message: &str) {
+        self.stats.info_count.set(self.stats.info_count.get() + 1);
+        self.messages.borrow_mut().push(format!("INFO: {}", message));
+    }
+    
+    fn warn(&self, message: &str) {
+        self.stats.warn_count.set(self.stats.warn_count.get() + 1);
+        self.messages.borrow_mut().push(format!("WARN: {}", message));
+    }
+    
+    fn error(&self, message: &str) {
+        self.stats.error_count.set(self.stats.error_count.get() + 1);
+        self.messages.borrow_mut().push(format!("ERROR: {}", message));
+    }
+    
+    fn get_stats(&self) -> (usize, usize, usize) {
+        (
+            self.stats.info_count.get(),
+            self.stats.warn_count.get(),
+            self.stats.error_count.get(),
+        )
+    }
+    
+    fn get_messages(&self) -> Vec<String> {
+        self.messages.borrow().clone()
+    }
+}
+
+// Exercise 3 Solution
+type Callback = Box<dyn Fn()>;
+
+struct CallbackSystem {
+    callbacks: RefCell<Vec<Callback>>,
+    call_count: Cell<usize>,
+}
+
+impl CallbackSystem {
+    fn new() -> Self {
+        CallbackSystem {
+            callbacks: RefCell::new(Vec::new()),
+            call_count: Cell::new(0),
+        }
+    }
+    
+    fn add_callback<F>(&self, callback: F)
+    where
+        F: Fn() + 'static,
+    {
+        self.callbacks.borrow_mut().push(Box::new(callback));
+    }
+    
+    fn trigger(&self) {
+        let current_count = self.call_count.get();
+        self.call_count.set(current_count + 1);
+        
+        for callback in self.callbacks.borrow().iter() {
+            callback();
+        }
+    }
+    
+    fn get_trigger_count(&self) -> usize {
+        self.call_count.get()
+    }
+}
+
+fn main() {
+    // Test Cache
+    let cache = Cache::new();
+    
+    cache.insert("key1", 42);
+    cache.insert("key2", 24);
+    
+    println!("Value 1: {:?}", cache.get(&"key1"));
+    println!("Value 2: {:?}", cache.get(&"key2"));
+    println!("Value 3: {:?}", cache.get(&"key3"));
+    
+    let (hits, misses) = cache.stats();
+    println!("Cache stats - Hits: {}, Misses: {}", hits, misses);
+    
+    // Test Logger
+    let logger = Logger::new();
+    
+    logger.info("System starting");
+    logger.warn("Low memory");
+    logger.error("Connection failed");
+    logger.info("Retrying connection");
+    
+    let (info, warn, error) = logger.get_stats();
+    println!("\nLogger stats:");
+    println!("Info: {}, Warn: {}, Error: {}", info, warn, error);
+    
+    println!("\nLog messages:");
+    for message in logger.get_messages() {
+        println!("{}", message);
+    }
+    
+    // Test CallbackSystem
+    let system = CallbackSystem::new();
+    let counter = Rc::new(Cell::new(0));
+    
+    let counter_clone = Rc::clone(&counter);
+    system.add_callback(move || {
+        counter_clone.set(counter_clone.get() + 1);
+    });
+    
+    system.add_callback(|| {
+        println!("Callback triggered!");
+    });
+    
+    system.trigger();
+    system.trigger();
+    
+    println!("\nCallback system:");
+    println!("Trigger count: {}", system.get_trigger_count());
+    println!("Counter value: {}", counter.get());
+}
+```
+</details>
+
+## Memory Management Best Practices
+
+### Guidelines for Smart Pointer Usage
+
+<Callout type="info" title="When to Use Each Smart Pointer">
+
+1. **Box&lt;T&gt;**
+   - For recursive types
+   - When you need known size at compile time
+   - When you want to transfer ownership of large data
+
+2. **Rc&lt;T&gt;**
+   - When you need multiple owners
+   - For shared data in single-threaded contexts
+   - In tree or graph structures
+
+3. **Arc&lt;T&gt;**
+   - For sharing between threads
+   - When you need thread-safe reference counting
+   - In parallel computing scenarios
+
+4. **RefCell&lt;T&gt;**
+   - When you need interior mutability
+   - For implementing mock objects in testing
+   - In single-threaded contexts
+
+5. **Mutex&lt;T&gt;**
+   - For thread-safe mutable access
+   - When you need exclusive access to data
+   - In conjunction with Arc&lt;T&gt; for threading
+</Callout>
+
+## Integration Project: Memory-Efficient Data Structure
+
+Let's combine all the smart pointer concepts in a practical project:
+
+```rust title="exercises/memory_efficient_structure.rs"
+// Create a data structure that:
+// 1. Uses different smart pointers appropriately
+// 2. Handles shared ownership
+// 3. Provides interior mutability where needed
+// 4. Is thread-safe when required
+// 5. Manages memory efficiently
+
+fn main() {
+    // Implementation will be tested here
+}
+```
+
+<details>
+<summary>Show Complete Solution</summary>
+
+```rust
+use std::sync::{Arc, Mutex};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::thread;
+use std::time::Duration;
+
+// A thread-safe, memory-efficient cache system
+struct SmartCache<K, V> {
+    // Thread-safe storage with interior mutability
+    storage: Arc<Mutex<HashMap<K, V>>>,
+    // Statistics that can be updated without mutable reference
+    hits: Arc<Mutex<u64>>,
+    misses: Arc<Mutex<u64>>,
+    // Cleanup handler
+    cleanup_handler: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
+}
+
+impl<K: Clone + Eq + std::hash::Hash + Send + 'static, V: Clone + Send + 'static> SmartCache<K, V> {
+    fn new() -> Self {
+        let cache = SmartCache {
+            storage: Arc::new(Mutex::new(HashMap::new())),
+            hits: Arc::new(Mutex::new(0)),
+            misses: Arc::new(Mutex::new(0)),
+            cleanup_handler: Arc::new(Mutex::new(None)),
+        };
+        
+        cache.start_cleanup_thread();
+        cache
+    }
+    
+    fn get(&self, key: &K) -> Option<V> {
+        let storage = self.storage.lock().unwrap();
+        match storage.get(key) {
+            Some(value) => {
+                drop(storage);  // Release lock before updating stats
+                let mut hits = self.hits.lock().unwrap();
+                *hits += 1;
+                Some(value.clone())
+            }
+            None => {
+                drop(storage);  // Release lock before updating stats
+                let mut misses = self.misses.lock().unwrap();
+                *misses += 1;
+                None
+            }
+        }
+    }
+    
+    fn insert(&self, key: K, value: V) {
+        let mut storage = self.storage.lock().unwrap();
+        storage.insert(key, value);
+    }
+    
+    fn remove(&self, key: &K) -> Option<V> {
+        let mut storage = self.storage.lock().unwrap();
+        storage.remove(key)
+    }
+    
+    fn clear(&self) {
+        let mut storage = self.storage.lock().unwrap();
+        storage.clear();
+    }
+    
+    fn get_stats(&self) -> (u64, u64) {
+        let hits = *self.hits.lock().unwrap();
+        let misses = *self.misses.lock().unwrap();
+        (hits, misses)
+    }
+    
+    fn start_cleanup_thread(&self) {
+        let storage = Arc::clone(&self.storage);
+        
+        let handle = thread::spawn(move || {
+            loop {
+                thread::sleep(Duration::from_secs(60));
+                let mut storage = storage.lock().unwrap();
+                
+                // Cleanup logic here (e.g., remove old entries)
+                println!("Cleanup thread running...");
+                
+                if storage.is_empty() {
+                    break;
+                }
+            }
+        });
+        
+        let mut cleanup_handler = self.cleanup_handler.lock().unwrap();
+        *cleanup_handler = Some(handle);
+    }
+}
+
+impl<K, V> Drop for SmartCache<K, V> {
+    fn drop(&mut self) {
+        // Stop cleanup thread
+        if let Some(handle) = self.cleanup_handler.lock().unwrap().take() {
+            handle.join().unwrap();
+        }
+    }
+}
+
+// Example usage
+fn main() {
+    // Create a thread-safe cache
+    let cache = Arc::new(SmartCache::new());
+    let mut handles = vec![];
+    
+    // Spawn multiple threads to access the cache
+    for i in 0..3 {
+        let cache = Arc::clone(&cache);
+        let handle = thread::spawn(move || {
+            // Insert some values
+            cache.insert(format!("key_{}_1", i), i * 100);
+            cache.insert(format!("key_{}_2", i), i * 200);
+            
+            // Read values
+            for j in 0..3 {
+                let key = format!("key_{}_1", j);
+                if let Some(value) = cache.get(&key) {
+                    println!("Thread {} read {}: {}", i, key, value);
+                }
+                
+                thread::sleep(Duration::from_millis(100));
+            }
+        });
+        handles.push(handle);
+    }
+    
+    // Wait for all threads to complete
+    for handle in handles {
+        handle.join().unwrap();
+    }
+    
+    // Print statistics
+    let (hits, misses) = cache.get_stats();
+    println!("\nCache statistics:");
+    println!("Hits: {}", hits);
+    println!("Misses: {}", misses);
+}
+```
+</details>
+
+## Common Mistakes and Solutions
+
+<Callout type="warn" title="Common Smart Pointer Pitfalls">
+1. **Creating Reference Cycles**
+   ```rust
+   // Wrong: Creates memory leak
+   use std::rc::Rc;
+   use std::cell::RefCell;
+   
+   struct Node {
+       next: Option<Rc<RefCell<Node>>>,
+   }
+   
+   // Right: Use Weak references
+   use std::rc::{Rc, Weak};
+   
+   struct Node {
+       next: Option<Weak<RefCell<Node>>>,
+   }
+   ```
+
+2. **Incorrect Thread Safety**
+   ```rust
+   // Wrong: Rc is not thread-safe
+   use std::rc::Rc;
+   
+   let data = Rc::new(vec![1, 2, 3]);
+   thread::spawn(move || {
+       println!("{:?}", data);
+   });
+   
+   // Right: Use Arc for threads
+   use std::sync::Arc;
+   
+   let data = Arc::new(vec![1, 2, 3]);
+   thread::spawn(move || {
+       println!("{:?}", data);
+   });
+   ```
+
+3. **RefCell Runtime Panics**
+   ```rust
+   // Wrong: Multiple mutable borrows
+   let cell = RefCell::new(42);
+   let mut one = cell.borrow_mut();
+   let mut two = cell.borrow_mut(); // Panics!
+   
+   // Right: Drop first borrow
+   let cell = RefCell::new(42);
+   {
+       let mut one = cell.borrow_mut();
+       *one += 1;
+   }
+   let mut two = cell.borrow_mut(); // OK
+   ```
+</Callout>
+
+## Next Steps
+
+After completing this chapter, you should:
+- Understand different smart pointer types
+- Know when to use each smart pointer
+- Be able to handle interior mutability
+- Create thread-safe shared data structures
+- Manage memory efficiently
+
+The next chapter will cover macros and code generation.
+
+<Cards>
+  <Card
+    title="Smart Pointers Documentation"
+    href="https://doc.rust-lang.org/book/ch15-00-smart-pointers.html"
+  >
+    Official Rust documentation on smart pointers
+  </Card>
+  
+  <Card
+    title="Thread Safety"
+    href="https://doc.rust-lang.org/book/ch16-00-concurrency.html"
+  >
+    Rust concurrency and thread safety guide
+  </Card>
+</Cards>
