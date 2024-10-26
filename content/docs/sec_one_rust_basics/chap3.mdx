@@ -1,0 +1,782 @@
+---
+title: "Chapter 3: Understanding Rust's Ownership System"
+description: "Learn about Rust's ownership system, borrowing rules, and lifetimes through practical examples and exercises"
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+# Understanding Rust's Ownership System
+
+## Introduction to Ownership
+
+Rust's ownership system is its most unique and powerful feature. It enables memory safety without garbage collection, but requires understanding some key concepts.
+
+### Basic Ownership Rules
+
+1. Each value has an owner
+2. There can only be one owner at a time
+3. When the owner goes out of scope, the value is dropped
+
+```rust title="Basic Ownership Example"
+fn main() {
+    let s1 = String::from("hello");    // s1 owns the string
+    let s2 = s1;                       // ownership moves to s2
+    // println!("{}", s1);             // This would cause an error
+    println!("{}", s2);                // This works fine
+}
+```
+
+### Practice Exercise: Basic Ownership
+
+```rust title="exercises/basic_ownership.rs"
+// Exercise 1: Fix the ownership errors in the following code
+fn main() {
+    // Create a String and make it change ownership twice
+    let text1 = String::from("Hello");
+    let text2 = text1;
+    let text3 = text2;
+    println!("text1: {}", text1);  // Should not work
+    println!("text2: {}", text2);  // Should not work
+    println!("text3: {}", text3);  // Should work
+    
+    // Exercise 2: Create a function that takes ownership of a String
+    // and returns ownership of the same String
+    
+    // Exercise 3: Create two Strings and swap their values
+    // without using std::mem::swap
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+fn main() {
+    // Exercise 1 Solution
+    let text1 = String::from("Hello");
+    let text2 = text1;
+    let text3 = text2;
+    // println!("text1: {}", text1);  // Error: value moved
+    // println!("text2: {}", text2);  // Error: value moved
+    println!("text3: {}", text3);     // Works!
+
+    // Exercise 2 Solution
+    fn take_and_give_back(s: String) -> String {
+        s  // Returns ownership
+    }
+    
+    let s1 = String::from("hello");
+    let s2 = take_and_give_back(s1);
+    println!("{}", s2);
+
+    // Exercise 3 Solution
+    let mut str1 = String::from("first");
+    let mut str2 = String::from("second");
+    
+    let temp = str1;
+    str1 = str2;
+    str2 = temp;
+    
+    println!("str1: {}, str2: {}", str1, str2);
+}
+```
+</details>
+
+## Clone and Copy
+
+### Understanding Clone
+
+When we need a deep copy of data, we can use the `clone` method:
+
+```rust title="Clone Example"
+let s1 = String::from("hello");
+let s2 = s1.clone();
+println!("s1 = {}, s2 = {}", s1, s2);  // Both work!
+```
+
+### Understanding Copy
+
+Some types implement the `Copy` trait, allowing values to be duplicated by copying bits:
+
+```rust title="Copy Types Example"
+let x = 5;
+let y = x;  // x is copied to y
+println!("x = {}, y = {}", x, y);  // Both work!
+```
+
+### Practice Exercise: Clone and Copy
+
+```rust title="exercises/clone_copy.rs"
+// Exercise 1: Identify which types need clone() and which don't
+fn main() {
+    // TODO: Create variables of different types and try to copy them
+    // Include: integers, floats, boolean, char, String, array, tuple
+    // Determine which ones implement Copy and which need clone()
+    
+    // Exercise 2: Create a struct that contains both Copy and non-Copy types
+    // Try to copy the struct and fix any errors
+    
+    // Exercise 3: Create a function that takes a String, clones it,
+    // modifies the clone, and returns both the original and modified versions
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+#[derive(Debug)]
+struct MixedTypes {
+    number: i32,      // Copy type
+    text: String,     // non-Copy type
+}
+
+fn main() {
+    // Exercise 1 Solution
+    // Copy types
+    let num1 = 42;
+    let num2 = num1;  // Copy trait
+    println!("num1: {}, num2: {}", num1, num2);
+    
+    let float1 = 3.14;
+    let float2 = float1;  // Copy trait
+    
+    let bool1 = true;
+    let bool2 = bool1;    // Copy trait
+    
+    let char1 = 'A';
+    let char2 = char1;    // Copy trait
+    
+    // Clone types
+    let string1 = String::from("hello");
+    let string2 = string1.clone();
+    
+    let array1 = [String::from("hello")];
+    let array2 = array1.clone();
+    
+    // Exercise 2 Solution
+    let mixed = MixedTypes {
+        number: 42,
+        text: String::from("hello"),
+    };
+    
+    // This won't work:
+    // let mixed2 = mixed;
+    
+    // This works:
+    let mixed2 = MixedTypes {
+        number: mixed.number,    // Copy
+        text: mixed.text.clone(), // Clone
+    };
+    
+    println!("mixed: {:?}", mixed);
+    println!("mixed2: {:?}", mixed2);
+    
+    // Exercise 3 Solution
+    fn modify_string(input: String) -> (String, String) {
+        let mut modified = input.clone();
+        modified.push_str(" world");
+        (input, modified)
+    }
+    
+    let original = String::from("hello");
+    let (original_returned, modified) = modify_string(original);
+    println!("Original: {}", original_returned);
+    println!("Modified: {}", modified);
+}
+```
+</details>
+
+## Borrowing and References
+
+### References and Borrowing
+
+Instead of taking ownership, we can borrow values using references:
+
+```rust title="References Example"
+fn calculate_length(s: &String) -> usize {
+    s.len()
+}
+
+fn main() {
+    let s1 = String::from("hello");
+    let len = calculate_length(&s1);
+    println!("The length of '{}' is {}.", s1, len);
+}
+```
+
+### Mutable References
+
+```rust title="Mutable References"
+fn modify_string(s: &mut String) {
+    s.push_str(", world");
+}
+
+fn main() {
+    let mut s = String::from("hello");
+    modify_string(&mut s);
+}
+```
+
+<Callout type="warn">
+Remember: You can have either:
+- One mutable reference, or
+- Any number of immutable references
+But not both at the same time.
+</Callout>
+
+### Practice Exercise: References
+
+```rust title="exercises/references.rs"
+// Exercise 1: Create a function that takes a reference to an integer
+// and doubles its value without taking ownership
+
+// Exercise 2: Write a function that takes two string references
+// and returns the longer string (without taking ownership)
+
+// Exercise 3: Create a function that modifies a vector of integers
+// through a mutable reference
+
+// Exercise 4: Implement a simple stack using a vector that can:
+// - Push elements (using mutable reference)
+// - Peek at the top element (using immutable reference)
+// - Pop elements (using mutable reference)
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+fn double_number(x: &mut i32) {
+    *x *= 2;
+}
+
+fn longer_string<'a>(s1: &'a str, s2: &'a str) -> &'a str {
+    if s1.len() >= s2.len() { s1 } else { s2 }
+}
+
+fn modify_vector(v: &mut Vec<i32>) {
+    for i in v.iter_mut() {
+        *i *= 2;
+    }
+}
+
+struct Stack {
+    items: Vec<i32>,
+}
+
+impl Stack {
+    fn new() -> Stack {
+        Stack { items: Vec::new() }
+    }
+    
+    fn push(&mut self, item: i32) {
+        self.items.push(item);
+    }
+    
+    fn peek(&self) -> Option<&i32> {
+        self.items.last()
+    }
+    
+    fn pop(&mut self) -> Option<i32> {
+        self.items.pop()
+    }
+}
+
+fn main() {
+    // Test Exercise 1
+    let mut num = 5;
+    double_number(&mut num);
+    assert_eq!(num, 10);
+    
+    // Test Exercise 2
+    let string1 = String::from("short");
+    let string2 = String::from("longer");
+    assert_eq!(longer_string(&string1, &string2), "longer");
+    
+    // Test Exercise 3
+    let mut numbers = vec![1, 2, 3, 4, 5];
+    modify_vector(&mut numbers);
+    assert_eq!(numbers, vec![2, 4, 6, 8, 10]);
+    
+    // Test Exercise 4
+    let mut stack = Stack::new();
+    stack.push(1);
+    stack.push(2);
+    stack.push(3);
+    
+    assert_eq!(stack.peek(), Some(&3));
+    assert_eq!(stack.pop(), Some(3));
+    assert_eq!(stack.peek(), Some(&2));
+}
+```
+</details>
+
+## Lifetimes
+
+### Understanding Lifetimes
+
+Lifetimes ensure references are valid for the scope we intend to use them in.
+
+```rust title="Basic Lifetime Example"
+// Explicit lifetime annotation
+fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+    if x.len() > y.len() {
+        x
+    } else {
+        y
+    }
+}
+```
+
+<Callout>
+Most of the time, lifetime annotations are implicit thanks to lifetime elision rules. However, understanding explicit annotations is crucial for complex scenarios.
+</Callout>
+
+### Practice Exercise: Lifetimes
+
+```rust title="exercises/lifetimes.rs"
+// Exercise 1: Fix the lifetime issues in these functions
+fn first_word(s: &str) -> &str {
+    let bytes = s.as_bytes();
+    
+    for (i, &item) in bytes.iter().enumerate() {
+        if item == b' ' {
+            return &s[0..i];
+        }
+    }
+    
+    &s[..]
+}
+
+// Exercise 2: Create a struct that holds a reference and implement proper lifetime annotations
+
+// Exercise 3: Write a function that takes two string slices and returns a new string
+// containing the first word of the longer string
+
+// Exercise 4: Implement a cache struct that stores a calculated value and its input reference
+struct Cache {
+    // TODO: Add fields and lifetime annotations
+}
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+// Exercise 1: Already correct due to lifetime elision rules!
+fn first_word(s: &str) -> &str {
+    let bytes = s.as_bytes();
+    
+    for (i, &item) in bytes.iter().enumerate() {
+        if item == b' ' {
+            return &s[0..i];
+        }
+    }
+    
+    &s[..]
+}
+
+// Exercise 2 Solution
+#[derive(Debug)]
+struct StringHolder<'a> {
+    text: &'a str,
+}
+
+impl<'a> StringHolder<'a> {
+    fn new(text: &'a str) -> Self {
+        StringHolder { text }
+    }
+    
+    fn get_text(&self) -> &str {
+        self.text
+    }
+}
+
+// Exercise 3 Solution
+fn first_word_of_longer<'a>(s1: &'a str, s2: &'a str) -> &'a str {
+    let longer = if s1.len() >= s2.len() { s1 } else { s2 };
+    match longer.find(' ') {
+        Some(pos) => &longer[..pos],
+        None => longer,
+    }
+}
+
+// Exercise 4 Solution
+struct Cache<'a> {
+    input: &'a str,
+    result: Option<usize>,
+}
+
+impl<'a> Cache<'a> {
+    fn new(input: &'a str) -> Self {
+        Cache {
+            input,
+            result: None,
+        }
+    }
+    
+    fn get_or_calculate(&mut self) -> usize {
+        if let Some(result) = self.result {
+            result
+        } else {
+            let calculated = self.input.len();
+            self.result = Some(calculated);
+            calculated
+        }
+    }
+}
+
+fn main() {
+    // Test Exercise 1
+    let s = String::from("Hello world");
+    let word = first_word(&s);
+    println!("First word: {}", word);
+    
+    // Test Exercise 2
+    let text = String::from("Hello");
+    let holder = StringHolder::new(&text);
+    println!("Held text: {}", holder.get_text());
+    
+    // Test Exercise 3
+    let s1 = "cat dog";
+    let s2 = "elephant mouse";
+    let first = first_word_of_longer(s1, s2);
+    println!("First word of longer string: {}", first);
+    
+    // Test Exercise 4
+    let input = String::from("test string");
+    let mut cache = Cache::new(&input);
+    println!("First calculation: {}", cache.get_or_calculate());
+    println!("Cached result: {}", cache.get_or_calculate());
+}
+```
+</details>
+
+## Slices
+
+### Understanding Slices
+
+Slices let you reference a contiguous sequence of elements:
+
+```rust title="Slice Examples"
+let s = String::from("hello world");
+
+let hello = &s[0..5];  // Slice referencing "hello"
+let world = &s[6..11]; // Slice referencing "world"
+
+// String slice
+let word = first_word(&s[..]);
+
+// Array slice
+let numbers = [1, 2, 3, 4, 5];
+let slice = &numbers[1..4];
+```
+
+### Practice Exercise: Slices
+
+```rust title="exercises/slices.rs"
+// Exercise 1: Implement a function that returns all words in a string as a vector of slices
+
+// Exercise 2: Create a function that returns the middle third of an array slice
+
+// Exercise 3: Write a function that checks if a string slice is a palindrome
+
+// Exercise 4: Implement a circular buffer using slices
+struct CircularBuffer<T> {
+    data: Vec<T>,
+    read_pos: usize,
+    write_pos: usize,
+}
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+// Exercise 1 Solution
+fn get_words(s: &str) -> Vec<&str> {
+    s.split_whitespace().collect()
+}
+
+// Exercise 2 Solution
+fn middle_third<T>(slice: &[T]) -> &[T] {
+    let len = slice.len();
+    let start = len / 3;
+    let end = (len * 2) / 3;
+    &slice[start..end]
+}
+
+// Exercise 3 Solution
+fn is_palindrome(s: &str) -> bool {
+    let chars: Vec<char> = s.chars().collect();
+    let len = chars.len();
+    for i in 0..len/2 {
+        if chars[i] != chars[len-1-i] {
+            return false;
+        }
+    }
+    true
+}
+
+// Exercise 4 Solution
+struct CircularBuffer<T> {
+    data: Vec<T>,
+    read_pos: usize,
+    write_pos: usize,
+    size: usize,
+}
+
+impl<T: Default + Clone> CircularBuffer<T> {
+    fn new(capacity: usize) -> Self {
+        CircularBuffer {
+            data: vec![T::default(); capacity],
+            read_pos: 0,
+            write_pos: 0,
+            size: 0,
+        }
+    }
+    
+    fn write(&mut self, value: T) -> Result<(), &'static str> {
+        if self.size == self.data.len() {
+            return Err("Buffer is full");
+        }
+        
+        self.data[self.write_pos] = value;
+        self.write_pos = (self.write_pos + 1) % self.data.len();
+        self.size += 1;
+        Ok(())
+    }
+    
+    fn read(&mut self) -> Option<T> {
+        if self.size == 0 {
+            return None;
+        }
+        
+        let value = self.data[self.read_pos].clone();
+        self.read_pos = (self.read_pos + 1) % self.data.len();
+        self.size -= 1;
+        Some(value)
+    }
+}
+
+fn main() {
+    // Test Exercise 1
+    let text = "The quick brown fox";
+    let words = get_words(text);
+    println!("Words: {:?}", words);
+
+    // Test Exercise 2
+    let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let middle = middle_third(&numbers);
+    println!("Middle third: {:?}", middle);
+
+    // Test Exercise 3
+    let palindrome = "racecar";
+    println!("Is palindrome: {}", is_palindrome(palindrome));
+
+    // Test Exercise 4
+    let mut buffer: CircularBuffer<i32> = CircularBuffer::new(3);
+    buffer.write(1).unwrap();
+    buffer.write(2).unwrap();
+    buffer.write(3).unwrap();
+    println!("Read: {:?}", buffer.read());
+    println!("Read: {:?}", buffer.read());
+    buffer.write(4).unwrap();
+    buffer.write(5).unwrap();
+}
+```
+</details>
+
+## Integration Project: Document Management System
+
+Let's combine all the concepts we've learned in a practical project:
+
+```rust title="exercises/document_system.rs"
+// Create a document management system that demonstrates:
+// - Ownership of documents
+// - Borrowing for reading and editing
+// - Lifetime management for document references
+// - Slices for document content manipulation
+
+struct Document {
+    // TODO: Implement document structure
+}
+
+struct DocumentManager {
+    // TODO: Implement manager structure
+}
+
+fn main() {
+    // TODO: Implement document management system
+}
+```
+
+<details>
+<summary>Show Complete Solution</summary>
+
+```rust
+use std::collections::HashMap;
+
+#[derive(Debug)]
+struct Document {
+    content: String,
+    author: String,
+    version: u32,
+}
+
+impl Document {
+    fn new(content: String, author: String) -> Self {
+        Document {
+            content,
+            author,
+            version: 1,
+        }
+    }
+    
+    fn update_content(&mut self, new_content: String) {
+        self.content = new_content;
+        self.version += 1;
+    }
+    
+    fn get_preview(&self, preview_length: usize) -> &str {
+        let end = preview_length.min(self.content.len());
+        &self.content[..end]
+    }
+}
+
+struct DocumentManager {
+    documents: HashMap<String, Document>,
+}
+
+impl DocumentManager {
+    fn new() -> Self {
+        DocumentManager {
+            documents: HashMap::new(),
+        }
+    }
+    
+    fn add_document(&mut self, title: String, content: String, author: String) {
+        let document = Document::new(content, author);
+        self.documents.insert(title, document);
+    }
+    
+    fn get_document(&self, title: &str) -> Option<&Document> {
+        self.documents.get(title)
+    }
+    
+    fn get_document_mut(&mut self, title: &str) -> Option<&mut Document> {
+        self.documents.get_mut(title)
+    }
+    
+    fn get_all_previews(&self, preview_length: usize) -> Vec<(&String, &str)> {
+        self.documents
+            .iter()
+            .map(|(title, doc)| (title, doc.get_preview(preview_length)))
+            .collect()
+    }
+}
+
+fn main() {
+    let mut manager = DocumentManager::new();
+    
+    // Add documents
+    manager.add_document(
+        "Rust Basics".to_string(),
+        "Rust is a systems programming language...".to_string(),
+        "Alice".to_string()
+    );
+    
+    manager.add_document(
+        "Ownership".to_string(),
+        "Understanding ownership is key to Rust...".to_string(),
+        "Bob".to_string()
+    );
+    
+    // Update a document
+    if let Some(doc) = manager.get_document_mut("Rust Basics") {
+        doc.update_content("Rust is an amazing systems programming language...".to_string());
+    }
+    
+    // Print previews
+    for (title, preview) in manager.get_all_previews(20) {
+        println!("{}: {}", title, preview);
+    }
+    
+    // Display full document
+    if let Some(doc) = manager.get_document("Ownership") {
+        println!("\nFull document:");
+        println!("Author: {}", doc.author);
+        println!("Version: {}", doc.version);
+        println!("Content: {}", doc.content);
+    }
+}
+```
+</details>
+
+## Common Pitfalls and Solutions
+
+<Callout type="warn" title="Common Ownership Mistakes">
+1. **Moving values unexpectedly**
+   ```rust
+   let v = vec![1, 2, 3];
+   for i in v {  // v is moved into the for loop
+       println!("{}", i);
+   }
+   // println!("{:?}", v);  // Error: v has been moved
+   ```
+
+2. **Multiple mutable borrows**
+   ```rust
+   let mut s = String::from("hello");
+   let r1 = &mut s;
+   let r2 = &mut s;  // Error: cannot borrow `s` as mutable more than once
+   ```
+
+3. **Lifetime mismatches**
+   ```rust
+   fn longest<'a>(x: &str, y: &'a str) -> &'a str {
+       let result = String::from("really long string");
+       &result  // Error: returns a reference to data owned by the function
+   }
+   ```
+</Callout>
+
+## Next Steps
+
+After completing this chapter, you should:
+- Understand Rust's ownership system
+- Be able to work with references and borrowing
+- Understand lifetimes and how to use them
+- Be comfortable working with slices
+- Be able to build systems that manage ownership correctly
+
+In the next chapter, we'll explore structs, enums, and pattern matching.
+
+<Cards>
+  <Card
+    title="Rust Ownership Documentation"
+    href="https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html"
+  >
+    Official documentation on Rust's ownership system
+  </Card>
+  
+  <Card
+    title="Rust References and Borrowing"
+    href="https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html"
+  >
+    Detailed guide on references and borrowing
+  </Card>
+</Cards>
