@@ -1,0 +1,1024 @@
+---
+title: "Chapter 10: Macros"
+description: "Learn about Rust's macro system"
+---
+
+# Macros
+
+## Declarative Macros
+
+Declarative macros use pattern matching to define code transformations.
+
+```rust title="Basic Macro Example"
+// Simple vector creation macro
+macro_rules! make_vec {
+    // Empty vector
+    () => {
+        Vec::new()
+    };
+    
+    // Single value
+    ($element:expr) => {{
+        let mut v = Vec::new();
+        v.push($element);
+        v
+    }};
+    
+    // Multiple values
+    ($($element:expr),+ $(,)?) => {{
+        let mut v = Vec::new();
+        $(
+            v.push($element);
+        )+
+        v
+    }};
+}
+
+fn main() {
+    let v1 = make_vec![];           // Empty vector
+    let v2 = make_vec![1];          // Single element
+    let v3 = make_vec![1, 2, 3];    // Multiple elements
+    
+    println!("{:?}", v3);
+}
+```
+
+### Practice Exercise: Declarative Macros
+
+```rust title="exercises/declarative_macros.rs"
+// Exercise 1: Create a macro for generating struct definitions
+// with common methods
+
+// Exercise 2: Implement a macro for simplified error handling
+// that includes file and line information
+
+// Exercise 3: Create a macro for building complex test cases
+// with setup and teardown
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+// Exercise 1 Solution
+macro_rules! generate_struct {
+    (
+        $(#[$attr:meta])*
+        struct $name:ident {
+            $(
+                $(#[$field_attr:meta])*
+                $field:ident: $type:ty
+            ),* $(,)?
+        }
+    ) => {
+        $(#[$attr])*
+        struct $name {
+            $(
+                $(#[$field_attr])*
+                $field: $type
+            ),*
+        }
+        
+        impl $name {
+            pub fn new($($field: $type),*) -> Self {
+                Self {
+                    $($field),*
+                }
+            }
+            
+            $(
+                pub fn $field(&self) -> &$type {
+                    &self.$field
+                }
+            )*
+        }
+        
+        impl std::fmt::Debug for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.debug_struct(stringify!($name))
+                    $(.field(stringify!($field), &self.$field))*
+                    .finish()
+            }
+        }
+    }
+}
+
+// Exercise 2 Solution
+macro_rules! context_error {
+    ($e:expr) => {
+        match $e {
+            Ok(value) => Ok(value),
+            Err(error) => Err(format!(
+                "Error at {}:{}: {}",
+                file!(),
+                line!(),
+                error
+            )),
+        }
+    };
+    
+    ($e:expr, $msg:expr) => {
+        match $e {
+            Ok(value) => Ok(value),
+            Err(error) => Err(format!(
+                "Error at {}:{}: {} - {}",
+                file!(),
+                line!(),
+                $msg,
+                error
+            )),
+        }
+    };
+}
+
+// Exercise 3 Solution
+macro_rules! test_case {
+    (
+        name: $name:ident,
+        setup: $setup:block,
+        test: $test:block,
+        teardown: $teardown:block
+    ) => {
+        #[test]
+        fn $name() {
+            // Setup
+            let setup_data = $setup;
+            
+            // Test with panic catching
+            let result = std::panic::catch_unwind(|| {
+                $test
+            });
+            
+            // Teardown always runs
+            $teardown;
+            
+            // Re-assert result
+            if let Err(e) = result {
+                std::panic::resume_unwind(e);
+            }
+        }
+    };
+}
+
+fn main() {
+    // Test Exercise 1
+    generate_struct! {
+        #[derive(Clone)]
+        struct Person {
+            #[allow(dead_code)]
+            name: String,
+            age: u32,
+            email: String,
+        }
+    }
+    
+    let person = Person::new(
+        "John Doe".to_string(),
+        30,
+        "john@example.com".to_string(),
+    );
+    
+    println!("Person: {:?}", person);
+    println!("Name: {}", person.name());
+    println!("Age: {}", person.age());
+    
+    // Test Exercise 2
+    fn divide(a: i32, b: i32) -> Result<i32, String> {
+        if b == 0 {
+            Err("division by zero".to_string())
+        } else {
+            Ok(a / b)
+        }
+    }
+    
+    let result = context_error!(divide(10, 0), "Failed to divide numbers");
+    println!("Division result: {:?}", result);
+    
+    // Test Exercise 3
+    test_case! {
+        name: test_addition,
+        setup: {
+            let x = 5;
+            let y = 3;
+            (x, y)
+        },
+        test: {
+            let (x, y) = setup_data;
+            assert_eq!(x + y, 8);
+        },
+        teardown: {
+            println!("Test completed");
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    test_case! {
+        name: test_with_cleanup,
+        setup: {
+            // Create temporary resources
+            let data = vec![1, 2, 3];
+            data
+        },
+        test: {
+            let data = setup_data;
+            assert_eq!(data.len(), 3);
+            assert_eq!(data[0], 1);
+        },
+        teardown: {
+            // Cleanup code here
+            println!("Cleaning up resources");
+        }
+    }
+}
+```
+</details>
+
+## Procedural Macros
+
+Procedural macros are more powerful than declarative macros and can manipulate the abstract syntax tree (AST) directly.
+
+### Basic Procedural Macro Setup
+
+```rust title="Cargo.toml"
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "1.0"
+quote = "1.0"
+proc-macro2 = "1.0"
+```
+
+```rust title="Basic Derive Macro Example"
+use proc_macro::TokenStream;
+use quote::quote;
+use syn::{parse_macro_input, DeriveInput};
+
+#[proc_macro_derive(MyDebug)]
+pub fn my_debug_derive(input: TokenStream) -> TokenStream {
+    // Parse the input tokens into a syntax tree
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+
+    // Build the output
+    let expanded = quote! {
+        impl std::fmt::Debug for #name {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "{} {{ ... }}", stringify!(#name))
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+```
+
+### Practice Exercise: Derive Macros
+
+```rust title="exercises/derive_macros.rs"
+// Exercise 1: Create a derive macro that implements a Builder pattern
+// for structs
+
+// Exercise 2: Implement a derive macro that generates serialization
+// and deserialization methods
+
+// Exercise 3: Create a derive macro for generating database CRUD
+// operations for structs
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+// In lib.rs (proc-macro crate)
+use proc_macro::TokenStream;
+use quote::{quote, format_ident};
+use syn::{parse_macro_input, DeriveInput, Data, Fields};
+
+// Exercise 1 Solution: Builder Pattern
+#[proc_macro_derive(Builder)]
+pub fn builder_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+    let builder_name = format_ident!("{}Builder", name);
+    
+    let fields = match input.data {
+        Data::Struct(ref data) => {
+            match data.fields {
+                Fields::Named(ref fields) => &fields.named,
+                _ => panic!("Only named fields are supported"),
+            }
+        },
+        _ => panic!("Only structs are supported"),
+    };
+    
+    let field_names = fields.iter().map(|f| &f.ident);
+    let field_types = fields.iter().map(|f| &f.ty);
+    
+    let builder_fields = field_names.clone().zip(field_types.clone()).map(|(name, ty)| {
+        quote! {
+            #name: Option<#ty>
+        }
+    });
+    
+    let builder_setters = field_names.clone().zip(field_types.clone()).map(|(name, ty)| {
+        quote! {
+            pub fn #name(mut self, value: #ty) -> Self {
+                self.#name = Some(value);
+                self
+            }
+        }
+    });
+    
+    let build_fields = field_names.clone().map(|name| {
+        quote! {
+            #name: self.#name.ok_or(concat!(stringify!(#name), " is required"))?
+        }
+    });
+    
+    let expanded = quote! {
+        pub struct #builder_name {
+            #(#builder_fields,)*
+        }
+        
+        impl #name {
+            pub fn builder() -> #builder_name {
+                #builder_name {
+                    #(#field_names: None,)*
+                }
+            }
+        }
+        
+        impl #builder_name {
+            #(#builder_setters)*
+            
+            pub fn build(self) -> Result<#name, &'static str> {
+                Ok(#name {
+                    #(#build_fields,)*
+                })
+            }
+        }
+    };
+    
+    TokenStream::from(expanded)
+}
+
+// Exercise 2 Solution: Serialization
+#[proc_macro_derive(Serialize)]
+pub fn serialize_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+    
+    let fields = match input.data {
+        Data::Struct(ref data) => {
+            match data.fields {
+                Fields::Named(ref fields) => &fields.named,
+                _ => panic!("Only named fields are supported"),
+            }
+        },
+        _ => panic!("Only structs are supported"),
+    };
+    
+    let field_names = fields.iter().map(|f| &f.ident);
+    
+    let serialize_fields = field_names.clone().map(|name| {
+        quote! {
+            map.insert(stringify!(#name).to_string(), self.#name.to_string());
+        }
+    });
+    
+    let expanded = quote! {
+        impl #name {
+            pub fn serialize(&self) -> std::collections::HashMap<String, String> {
+                let mut map = std::collections::HashMap::new();
+                #(#serialize_fields)*
+                map
+            }
+        }
+    };
+    
+    TokenStream::from(expanded)
+}
+
+// Exercise 3 Solution: CRUD Operations
+#[proc_macro_derive(CRUD)]
+pub fn crud_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+    
+    let expanded = quote! {
+        impl #name {
+            pub async fn create(&self, db: &Database) -> Result<(), Error> {
+                let collection = db.collection(stringify!(#name));
+                collection.insert_one(self, None).await?;
+                Ok(())
+            }
+            
+            pub async fn read(id: &str, db: &Database) -> Result<Option<Self>, Error> {
+                let collection = db.collection(stringify!(#name));
+                collection.find_one(doc! { "_id": id }, None).await
+            }
+            
+            pub async fn update(&self, db: &Database) -> Result<(), Error> {
+                let collection = db.collection(stringify!(#name));
+                collection.replace_one(
+                    doc! { "_id": &self.id },
+                    self,
+                    None
+                ).await?;
+                Ok(())
+            }
+            
+            pub async fn delete(id: &str, db: &Database) -> Result<(), Error> {
+                let collection = db.collection(stringify!(#name));
+                collection.delete_one(doc! { "_id": id }, None).await?;
+                Ok(())
+            }
+        }
+    };
+    
+    TokenStream::from(expanded)
+}
+
+// In main.rs (using the macros)
+use my_macros::{Builder, Serialize, CRUD};
+
+#[derive(Builder)]
+struct Person {
+    name: String,
+    age: u32,
+    email: String,
+}
+
+#[derive(Serialize)]
+struct Config {
+    host: String,
+    port: u16,
+    debug: bool,
+}
+
+#[derive(CRUD)]
+struct User {
+    id: String,
+    username: String,
+    email: String,
+}
+
+fn main() {
+    // Test Builder Pattern
+    let person = Person::builder()
+        .name("John Doe".to_string())
+        .age(30)
+        .email("john@example.com".to_string())
+        .build()
+        .unwrap();
+    
+    println!("Person: {:?}", person);
+    
+    // Test Serialization
+    let config = Config {
+        host: "localhost".to_string(),
+        port: 8080,
+        debug: true,
+    };
+    
+    let serialized = config.serialize();
+    println!("Serialized config: {:?}", serialized);
+    
+    // Test CRUD Operations
+    async {
+        let db = Database::connect("mongodb://localhost").await?;
+        
+        let user = User {
+            id: "123".to_string(),
+            username: "johndoe".to_string(),
+            email: "john@example.com".to_string(),
+        };
+        
+        user.create(&db).await?;
+        
+        if let Some(found_user) = User::read("123", &db).await? {
+            println!("Found user: {:?}", found_user);
+        }
+        
+        user.update(&db).await?;
+        User::delete("123", &db).await?;
+        
+        Ok::<(), Error>(())
+    };
+}
+```
+</details>
+
+## Attribute Macros
+
+Attribute macros define custom attributes that can be applied to items.
+
+```rust title="Attribute Macro Example"
+#[proc_macro_attribute]
+pub fn route(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as ItemFn);
+    let path = parse_macro_input!(attr as LitStr);
+    let name = &input.sig.ident;
+    
+    let expanded = quote! {
+        #[get(#path)]
+        #input
+        
+        inventory::submit! {
+            RouteItem {
+                path: #path,
+                handler: #name,
+            }
+        }
+    };
+    
+    TokenStream::from(expanded)
+}
+```
+
+### Practice Exercise: Attribute Macros
+
+```rust title="exercises/attribute_macros.rs"
+// Exercise 1: Create an attribute macro for function timing
+// that measures and logs execution time
+
+// Exercise 2: Implement an attribute macro for method validation
+// that checks parameters before execution
+
+// Exercise 3: Create an attribute macro for caching function results
+// based on input parameters
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+// In lib.rs (proc-macro crate)
+use proc_macro::TokenStream;
+use quote::quote;
+use syn::{parse_macro_input, ItemFn, AttributeArgs};
+
+// Exercise 1 Solution
+#[proc_macro_attribute]
+pub fn timing(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as ItemFn);
+    let name = &input.sig.ident;
+    let body = &input.block;
+    let inputs = &input.sig.inputs;
+    let output = &input.sig.output;
+    
+    let expanded = quote! {
+        fn #name(#inputs) #output {
+            let start = std::time::Instant::now();
+            let result = (|| #body)();
+            let duration = start.elapsed();
+            println!("Function '{}' took {:?}", stringify!(#name), duration);
+            result
+        }
+    };
+    
+    TokenStream::from(expanded)
+}
+
+// Exercise 2 Solution
+#[proc_macro_attribute]
+pub fn validate(attrs: TokenStream, item: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(attrs as AttributeArgs);
+    let input = parse_macro_input!(item as ItemFn);
+    
+    let name = &input.sig.ident;
+    let inputs = &input.sig.inputs;
+    let output = &input.sig.output;
+    let body = &input.block;
+    
+    let validations = args.iter().map(|arg| {
+        quote! {
+            if !valid_parameter(&#arg) {
+                return Err(format!("Invalid parameter: {}", stringify!(#arg)));
+            }
+        }
+    });
+    
+    let expanded = quote! {
+        fn #name(#inputs) -> Result<#output, String> {
+            #(#validations)*
+            Ok((|| #body)())
+        }
+    };
+    
+    TokenStream::from(expanded)
+}
+
+// Exercise 3 Solution
+#[proc_macro_attribute]
+pub fn cache(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as ItemFn);
+    let name = &input.sig.ident;
+    let inputs = &input.sig.inputs;
+    let output = &input.sig.output;
+    let body = &input.block;
+    
+    let expanded = quote! {
+        fn #name(#inputs) #output {
+            use std::collections::HashMap;
+            use std::sync::Mutex;
+            use std::any::Any;
+            
+            lazy_static! {
+                static ref CACHE: Mutex<HashMap<String, Box<dyn Any + Send>>> = 
+                    Mutex::new(HashMap::new());
+            }
+            
+            let key = format!("{:?}", (&self,));
+            
+            if let Some(cached) = CACHE.lock().unwrap().get(&key) {
+                if let Some(value) = cached.downcast_ref() {
+                    return value.clone();
+                }
+            }
+            
+            let result = (|| #body)();
+            CACHE.lock().unwrap().insert(key, Box::new(result.clone()));
+            result
+        }
+    };
+    
+    TokenStream::from(expanded)
+}
+
+// In main.rs
+use my_macros::{timing, validate, cache};
+
+#[timing]
+fn fibonacci(n: u64) -> u64 {
+    if n <= 1 {
+        n
+    } else {
+        fibonacci(n - 1) + fibonacci(n - 2)
+    }
+}
+
+#[validate("username", "email")]
+fn create_user(username: &str, email: &str) -> User {
+    User {
+        username: username.to_string(),
+        email: email.to_string(),
+    }
+}
+
+#[cache]
+fn expensive_computation(input: u64) -> u64 {
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    input * input
+}
+
+fn main() {
+    // Test timing macro
+    println!("Calculating fibonacci(10)");
+    let result = fibonacci(10);
+    println!("Result: {}", result);
+    
+    // Test validation macro
+    match create_user("johndoe", "john@example.com") {
+        Ok(user) => println!("User created: {:?}", user),
+        Err(e) => println!("Error: {}", e),
+    }
+    
+    // Test cache macro
+    println!("First call (slow):");
+    let result1 = expensive_computation(42);
+    println!("Result: {}", result1);
+    
+    println!("Second call (cached):");
+    let result2 = expensive_computation(42);
+    println!("Result: {}", result2);
+}
+```
+</details>
+
+## Function-like Procedural Macros
+
+Function-like procedural macros allow you to define custom macro invocations.
+
+```rust title="Function-like Macro Example"
+#[proc_macro]
+pub fn sql(input: TokenStream) -> TokenStream {
+    let sql = parse_macro_input!(input as LitStr);
+    let query = sql.value();
+    
+    // Parse SQL and generate code
+    let expanded = quote! {
+        Query {
+            sql: #query.to_string(),
+            params: vec![],
+        }
+    };
+    
+    TokenStream::from(expanded)
+}
+```
+
+### Practice Exercise: Function-like Macros
+
+```rust title="exercises/function_macros.rs"
+// Exercise 1: Create a SQL query builder macro that ensures
+// type safety and parameter validation
+
+// Exercise 2: Implement a macro for generating type-safe
+// HTML templates
+
+// Exercise 3: Create a macro for defining state machines
+// with type-safe transitions
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+// In lib.rs (proc-macro crate)
+use proc_macro::TokenStream;
+use quote::quote;
+use syn::{parse_macro_input, parse::Parse, LitStr, Token, Ident};
+
+// Exercise 1 Solution: SQL Builder
+#[proc_macro]
+pub fn sql(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as SqlQuery);
+    
+    let query = &input.query;
+    let params = &input.params;
+    
+    let expanded = quote! {
+        Query {
+            sql: #query.to_string(),
+            params: vec![#(#params),*],
+            _marker: std::marker::PhantomData,
+        }
+    };
+    
+    TokenStream::from(expanded)
+}
+
+struct SqlQuery {
+    query: LitStr,
+    params: Vec<Ident>,
+}
+
+impl Parse for SqlQuery {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let query = input.parse()?;
+        let mut params = Vec::new();
+        
+        while !input.is_empty() {
+            input.parse::<Token![,]>()?;
+            params.push(input.parse()?);
+        }
+        
+        Ok(SqlQuery { query, params })
+    }
+}
+
+// Exercise 2 Solution: HTML Template
+#[proc_macro]
+pub fn html(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as HtmlTemplate);
+    let expanded = input.generate();
+    TokenStream::from(expanded)
+}
+
+struct HtmlTemplate {
+    elements: Vec<HtmlElement>,
+}
+
+impl Parse for HtmlTemplate {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let mut elements = Vec::new();
+        while !input.is_empty() {
+            elements.push(input.parse()?);
+        }
+        Ok(HtmlTemplate { elements })
+    }
+}
+
+impl HtmlTemplate {
+    fn generate(&self) -> proc_macro2::TokenStream {
+        quote! {
+            String::from(concat!(#(#self.elements),*))
+        }
+    }
+}
+
+// Exercise 3 Solution: State Machine
+#[proc_macro]
+pub fn state_machine(input: TokenStream) -> TokenStream {
+    let sm = parse_macro_input!(input as StateMachine);
+    let expanded = sm.generate();
+    TokenStream::from(expanded)
+}
+
+struct StateMachine {
+    states: Vec<State>,
+    transitions: Vec<Transition>,
+}
+
+impl Parse for StateMachine {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let mut states = Vec::new();
+        let mut transitions = Vec::new();
+        
+        while !input.is_empty() {
+            if input.peek(Token![state]) {
+                states.push(input.parse()?);
+            } else if input.peek(Token![transition]) {
+                transitions.push(input.parse()?);
+            }
+        }
+        
+        Ok(StateMachine { states, transitions })
+    }
+}
+
+// In main.rs
+use my_macros::{sql, html, state_machine};
+
+fn main() {
+    // Test SQL Builder
+    let query = sql!("SELECT * FROM users WHERE id = ?", user_id);
+    let users = query.execute().unwrap();
+    
+    // Test HTML Template
+    let name = "John";
+    let content = html! {
+        <div class="user">
+            <h1>{name}</h1>
+            <p>Welcome back!</p>
+        </div>
+    };
+    println!("Generated HTML: {}", content);
+    
+    // Test State Machine
+    state_machine! {
+        state Idle;
+        state Running;
+        state Paused;
+        
+        transition Idle -> Running (start);
+        transition Running -> Paused (pause);
+        transition Paused -> Running (resume);
+        transition Running -> Idle (stop);
+    }
+    
+    let mut machine = Machine::new(State::Idle);
+    machine.transition(Event::Start).unwrap();
+    assert_eq!(machine.state(), State::Running);
+}
+```
+</details>
+
+## Best Practices and Design Patterns
+
+<Callout type="info" title="Macro Best Practices">
+
+1. **General Guidelines**
+   - Keep macros simple and focused
+   - Provide clear error messages
+   - Document expected input format
+   - Consider hygiene implications
+
+2. **Debugging Tips**
+   ```rust
+   // Use println! for debugging during development
+   println!("Debug: {:#?}", input);
+   
+   // Use the `cargo expand` tool to see expanded macros
+   // cargo install cargo-expand
+   ```
+
+3. **Error Handling**
+   ```rust
+   // Use compile_error! for static errors
+   if condition {
+       return quote! {
+           compile_error!("Invalid input");
+       }.into();
+   }
+   
+   // Use custom error types for runtime validation
+   #[derive(Debug)]
+   struct MacroError(String);
+   ```
+
+4. **Testing Macros**
+   ```rust
+   #[cfg(test)]
+   mod tests {
+       use super::*;
+       
+       #[test]
+       fn test_macro() {
+           let input = quote! {
+               // Test input
+           };
+           
+           let output = my_macro(input.into());
+           // Assert expected output
+       }
+   }
+   ```
+</Callout>
+
+## Common Mistakes and Solutions
+
+<Callout type="warn" title="Common Macro Pitfalls">
+
+1. **Hygiene Issues**
+   ```rust
+   // Wrong: May clash with user's identifiers
+   quote! {
+       let temp = something;
+   }
+   
+   // Right: Use hygiene-aware names
+   quote! {
+       let #name = something;
+   }
+   ```
+
+2. **Missing Error Handling**
+   ```rust
+   // Wrong: Silent failures
+   if error_condition {
+       return TokenStream::new();
+   }
+   
+   // Right: Proper error reporting
+   if error_condition {
+       return syn::Error::new(
+           input.span(),
+           "Invalid input"
+       ).to_compile_error().into();
+   }
+   ```
+
+3. **Over-complicated Macros**
+   ```rust
+   // Wrong: Too much logic in macros
+   macro_rules! complex {
+       ($($many:tt)*) => {
+           // Pages of complex rules
+       }
+   }
+   
+   // Right: Split into smaller, focused macros
+   macro_rules! simple_part_1 { ... }
+   macro_rules! simple_part_2 { ... }
+   ```
+</Callout>
+
+## Next Steps
+
+After completing this chapter, you should be able to:
+- Create and use declarative macros
+- Implement procedural macros
+- Write attribute macros
+- Generate code safely
+- Debug and test macros
+
+The next chapter will cover concurrency and asynchronous programming.
+
+<Cards>
+  <Card
+    title="Macro Documentation"
+    href="https://doc.rust-lang.org/book/ch19-06-macros.html"
+  >
+    Official Rust documentation on macros
+  </Card>
+  
+  <Card
+    title="syn Crate Documentation"
+    href="https://docs.rs/syn/"
+  >
+    Documentation for parsing Rust code
+  </Card>
+</Cards>
