@@ -1,0 +1,933 @@
+---
+title: "Chapter 7: Testing in Rust"
+description: "Learn how to write and organize tests in Rust, including unit tests, integration tests, and property-based testing"
+---
+
+# Testing in Rust
+
+## Unit Testing Basics
+
+Rust has built-in support for testing through the `#[test]` attribute.
+
+```rust title="Basic Test Example"
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        let result = 2 + 2;
+        assert_eq!(result, 4);
+    }
+    
+    #[test]
+    fn it_fails() {
+        panic!("This test will fail");
+    }
+    
+    #[test]
+    #[should_panic(expected = "This test will fail")]
+    fn it_should_panic() {
+        panic!("This test will fail");
+    }
+}
+```
+
+### Practice Exercise: Basic Unit Tests
+
+```rust title="exercises/basic_tests.rs"
+// Exercise 1: Write tests for a simple calculator implementation
+// Include normal cases, edge cases, and error cases
+
+// Exercise 2: Write tests using different assertion macros
+// (assert!, assert_eq!, assert_ne!, etc.)
+
+// Exercise 3: Write tests that expect panics using should_panic
+
+fn main() {
+    // Implementation will be tested
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+#[derive(Debug)]
+struct Calculator {
+    memory: f64,
+}
+
+#[derive(Debug)]
+enum CalculatorError {
+    DivisionByZero,
+    InvalidOperation,
+    Overflow,
+}
+
+impl Calculator {
+    fn new() -> Self {
+        Calculator { memory: 0.0 }
+    }
+    
+    fn add(&mut self, x: f64) -> f64 {
+        self.memory += x;
+        self.memory
+    }
+    
+    fn subtract(&mut self, x: f64) -> f64 {
+        self.memory -= x;
+        self.memory
+    }
+    
+    fn multiply(&mut self, x: f64) -> f64 {
+        self.memory *= x;
+        self.memory
+    }
+    
+    fn divide(&mut self, x: f64) -> Result<f64, CalculatorError> {
+        if x == 0.0 {
+            Err(CalculatorError::DivisionByZero)
+        } else {
+            self.memory /= x;
+            Ok(self.memory)
+        }
+    }
+    
+    fn clear(&mut self) {
+        self.memory = 0.0;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    // Exercise 1: Calculator Tests
+    #[test]
+    fn test_basic_operations() {
+        let mut calc = Calculator::new();
+        
+        assert_eq!(calc.add(5.0), 5.0);
+        assert_eq!(calc.subtract(3.0), 2.0);
+        assert_eq!(calc.multiply(4.0), 8.0);
+        assert_eq!(calc.divide(2.0).unwrap(), 4.0);
+    }
+    
+    #[test]
+    fn test_clear_memory() {
+        let mut calc = Calculator::new();
+        calc.add(10.0);
+        calc.clear();
+        assert_eq!(calc.memory, 0.0);
+    }
+    
+    #[test]
+    fn test_chain_operations() {
+        let mut calc = Calculator::new();
+        calc.add(5.0);
+        calc.multiply(2.0);
+        calc.subtract(3.0);
+        assert_eq!(calc.memory, 7.0);
+    }
+    
+    // Exercise 2: Different Assertions
+    #[test]
+    fn test_various_assertions() {
+        let mut calc = Calculator::new();
+        
+        // assert!
+        assert!(calc.memory == 0.0, "Initial memory should be 0");
+        
+        // assert_eq!
+        assert_eq!(calc.add(5.0), 5.0, "Adding 5 to 0 should be 5");
+        
+        // assert_ne!
+        assert_ne!(calc.memory, 0.0, "Memory should not be 0 after adding");
+        
+        // assert! with complex condition
+        assert!(
+            calc.memory > 0.0 && calc.memory < 10.0,
+            "Memory should be between 0 and 10"
+        );
+    }
+    
+    // Exercise 3: Should Panic Tests
+    #[test]
+    #[should_panic(expected = "division by zero")]
+    fn test_division_by_zero_panic() {
+        let mut calc = Calculator::new();
+        calc.add(10.0);
+        calc.divide(0.0).unwrap();
+    }
+    
+    #[test]
+    fn test_division_by_zero_result() {
+        let mut calc = Calculator::new();
+        calc.add(10.0);
+        match calc.divide(0.0) {
+            Err(CalculatorError::DivisionByZero) => assert!(true),
+            _ => assert!(false, "Should return DivisionByZero error"),
+        }
+    }
+    
+    // Additional test cases
+    #[test]
+    fn test_floating_point_precision() {
+        let mut calc = Calculator::new();
+        calc.add(0.1);
+        calc.add(0.2);
+        // Use approximate equality for floating-point numbers
+        assert!((calc.memory - 0.3).abs() < f64::EPSILON);
+    }
+    
+    #[test]
+    fn test_negative_numbers() {
+        let mut calc = Calculator::new();
+        calc.add(-5.0);
+        calc.multiply(-2.0);
+        assert_eq!(calc.memory, 10.0);
+    }
+    
+    #[test]
+    fn test_large_numbers() {
+        let mut calc = Calculator::new();
+        calc.add(f64::MAX / 2.0);
+        calc.multiply(1.5);
+        assert!(calc.memory.is_finite());
+    }
+}
+```
+</details>
+
+## Test Organization
+
+### Different Types of Tests
+
+```rust title="Test Organization Example"
+// Unit tests in the same file
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn internal_test() {
+        // Test implementation
+    }
+}
+
+// Integration tests in tests/ directory
+// tests/integration_test.rs
+use my_crate;
+
+#[test]
+fn external_test() {
+    // Test implementation
+}
+```
+
+### Practice Exercise: Test Organization
+
+```rust title="exercises/test_organization.rs"
+// Exercise 1: Create a module with both public and private functions,
+// and write tests for both
+
+// Exercise 2: Set up integration tests in the tests/ directory
+
+// Exercise 3: Create test utilities that can be shared between
+// different test modules
+
+fn main() {
+    // Implementation will be tested
+}
+```
+
+<details>
+<summary>Show Exercise 2 and 3 Solutions</summary>
+
+```rust title="src/lib.rs"
+pub struct User {
+    pub id: u32,
+    pub name: String,
+    pub age: u32,
+}
+
+impl User {
+    pub fn new(id: u32, name: String, age: u32) -> Self {
+        User { id, name, age }
+    }
+    
+    fn validate_age(age: u32) -> bool {
+        age >= 18 && age <= 150
+    }
+    
+    pub fn validate(&self) -> bool {
+        Self::validate_age(self.age) && !self.name.is_empty()
+    }
+}
+
+#[derive(Debug)]
+pub struct Database {
+    users: Vec<User>,
+}
+
+impl Database {
+    pub fn new() -> Self {
+        Database { users: Vec::new() }
+    }
+    
+    pub fn add_user(&mut self, user: User) -> Result<(), String> {
+        if !user.validate() {
+            return Err("Invalid user data".to_string());
+        }
+        self.users.push(user);
+        Ok(())
+    }
+    
+    pub fn get_user(&self, id: u32) -> Option<&User> {
+        self.users.iter().find(|u| u.id == id)
+    }
+}
+```
+
+```rust title="tests/common/mod.rs"
+use my_crate::{User, Database};
+
+pub fn setup_test_db() -> Database {
+    let mut db = Database::new();
+    db.add_user(User::new(1, "Alice".to_string(), 30)).unwrap();
+    db.add_user(User::new(2, "Bob".to_string(), 25)).unwrap();
+    db
+}
+
+pub fn create_test_user(id: u32) -> User {
+    User::new(id, format!("Test User {}", id), 20 + (id % 50))
+}
+```
+
+```rust title="tests/integration_test.rs"
+use my_crate::{User, Database};
+mod common;
+
+#[test]
+fn test_add_valid_user() {
+    let mut db = Database::new();
+    let user = User::new(1, "Test User".to_string(), 30);
+    assert!(db.add_user(user).is_ok());
+}
+
+#[test]
+fn test_add_invalid_user() {
+    let mut db = Database::new();
+    let user = User::new(1, "".to_string(), 15);  // Invalid age and empty name
+    assert!(db.add_user(user).is_err());
+}
+
+#[test]
+fn test_get_existing_user() {
+    let db = common::setup_test_db();
+    let user = db.get_user(1);
+    assert!(user.is_some());
+    assert_eq!(user.unwrap().name, "Alice");
+}
+
+#[test]
+fn test_get_nonexistent_user() {
+    let db = common::setup_test_db();
+    assert!(db.get_user(999).is_none());
+}
+```
+</details>
+
+## Test Fixtures and Helpers
+
+### Setting Up Test Environments
+
+```rust title="Test Fixtures Example"
+struct TestContext {
+    db: Database,
+    test_data: Vec<TestData>,
+}
+
+impl TestContext {
+    fn setup() -> Self {
+        // Setup code
+    }
+    
+    fn teardown(self) {
+        // Cleanup code
+    }
+}
+
+#[test]
+fn test_with_context() {
+    let context = TestContext::setup();
+    // Test implementation
+    context.teardown();
+}
+```
+
+### Practice Exercise: Test Fixtures
+
+```rust title="exercises/test_fixtures.rs"
+// Exercise 1: Create a test fixture for a database connection
+// that sets up and tears down test data
+
+// Exercise 2: Implement test helpers that generate test data
+// and verify common conditions
+
+// Exercise 3: Create a test harness that manages complex
+// test state and cleanup
+
+fn main() {
+    // Implementation will be tested
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::collections::HashMap;
+use std::sync::{Once, Arc, Mutex};
+
+// Exercise 1 Solution
+struct TestDatabase {
+    connection: DbConnection,
+    test_data: Vec<TestRecord>,
+}
+
+impl TestDatabase {
+    fn new() -> Self {
+        let conn = DbConnection::new("test_db");
+        let test_db = TestDatabase {
+            connection: conn,
+            test_data: Vec::new(),
+        };
+        test_db.setup();
+        test_db
+    }
+    
+    fn setup(&self) {
+        self.connection.execute("CREATE TABLE IF NOT EXISTS test_table (...)");
+        self.insert_test_data();
+    }
+    
+    fn teardown(&self) {
+        self.connection.execute("DROP TABLE IF EXISTS test_table");
+    }
+    
+    fn insert_test_data(&self) {
+        // Insert test records
+    }
+}
+
+impl Drop for TestDatabase {
+    fn drop(&mut self) {
+        self.teardown();
+    }
+}
+
+// Exercise 2 Solution
+struct TestDataGenerator {
+    id_counter: Arc<Mutex<u32>>,
+}
+
+impl TestDataGenerator {
+    fn new() -> Self {
+        TestDataGenerator {
+            id_counter: Arc::new(Mutex::new(1)),
+        }
+    }
+    
+    fn generate_user(&self) -> User {
+        let mut counter = self.id_counter.lock().unwrap();
+        let id = *counter;
+        *counter += 1;
+        
+        User {
+            id,
+            name: format!("Test User {}", id),
+            email: format!("user{}@test.com", id),
+            age: 20 + (id % 50) as u32,
+        }
+    }
+    
+    fn generate_test_data(&self, count: u32) -> Vec<User> {
+        (0..count).map(|_| self.generate_user()).collect()
+    }
+}
+
+// Verification helpers
+fn verify_user_data(user: &User) -> bool {
+    user.name.starts_with("Test User") &&
+    user.email.contains('@') &&
+    user.age >= 20 &&
+    user.age <= 70
+}
+
+// Exercise 3 Solution
+struct TestHarness {
+    db: TestDatabase,
+    data_generator: TestDataGenerator,
+    created_users: Vec<User>,
+    created_files: Vec<String>,
+}
+
+impl TestHarness {
+    fn new() -> Self {
+        TestHarness {
+            db: TestDatabase::new(),
+            data_generator: TestDataGenerator::new(),
+            created_users: Vec::new(),
+            created_files: Vec::new(),
+        }
+    }
+    
+    fn create_test_user(&mut self) -> User {
+        let user = self.data_generator.generate_user();
+        self.created_users.push(user.clone());
+        user
+    }
+    
+    fn create_test_file(&mut self) -> String {
+        let filename = format!("test_file_{}.txt", self.created_files.len());
+        std::fs::write(&filename, "test content").unwrap();
+        self.created_files.push(filename.clone());
+        filename
+    }
+}
+
+impl Drop for TestHarness {
+    fn drop(&mut self) {
+        // Clean up created users
+        for user in &self.created_users {
+            self.db.connection.execute(
+                "DELETE FROM users WHERE id = ?",
+                &[&user.id]
+            );
+        }
+        
+        // Clean up created files
+        for filename in &self.created_files {
+            std::fs::remove_file(filename).ok();
+        }
+    }
+}
+
+// Tests using the fixtures
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_user_creation() {
+        let mut harness = TestHarness::new();
+        let user = harness.create_test_user();
+        assert!(verify_user_data(&user));
+    }
+    
+    #[test]
+    fn test_file_operations() {
+        let mut harness = TestHarness::new();
+        let filename = harness.create_test_file();
+        assert!(std::path::Path::new(&filename).exists());
+    }
+    
+    #[test]
+    fn test_bulk_data_generation() {
+        let generator = TestDataGenerator::new();
+        let users = generator.generate_test_data(10);
+        assert_eq!(users.len(), 10);
+        assert!(users.iter().all(verify_user_data));
+    }
+}
+```
+</details>
+
+## Property-Based Testing
+
+Using the `proptest` crate for property-based testing:
+
+```rust title="Property Testing Example"
+use proptest::prelude::*;
+
+proptest! {
+    #[test]
+    fn test_reverse_string(s: String) {
+        let reversed = s.chars().rev().collect::<String>();
+        let double_reversed = reversed.chars().rev().collect::<String>();
+        assert_eq!(s, double_reversed);
+    }
+}
+```
+
+### Practice Exercise: Property Testing
+
+```rust title="exercises/property_tests.rs"
+// Exercise 1: Write property tests for a sorting function
+// that verify various properties of sorted arrays
+
+// Exercise 2: Create property tests for a data structure
+// that verify invariants are maintained
+
+// Exercise 3: Implement property tests for mathematical
+// functions that verify mathematical properties
+
+fn main() {
+    // Implementation will be tested
+}
+```
+
+<details>
+<summary>Show Property Testing Solutions</summary>
+
+```rust
+use proptest::prelude::*;
+use std::collections::BinaryHeap;
+
+// Exercise 1 Solution: Sorting Properties
+fn is_sorted<T: Ord>(slice: &[T]) -> bool {
+    slice.windows(2).all(|w| w[0] <= w[1])
+}
+
+proptest! {
+    #[test]
+    fn test_sort_properties(vec: Vec<i32>) {
+        let mut sorted = vec.clone();
+        sorted.sort();
+        
+        // Property 1: Result should be sorted
+        assert!(is_sorted(&sorted));
+        
+        // Property 2: Length should be preserved
+        prop_assert_eq!(vec.len(), sorted.len());
+        
+        // Property 3: Should contain same elements (test using frequencies)
+        let mut freq_original = std::collections::HashMap::new();
+        let mut freq_sorted = std::collections::HashMap::new();
+        
+        for &x in &vec {
+            *freq_original.entry(x).or_insert(0) += 1;
+        }
+        for &x in &sorted {
+            *freq_sorted.entry(x).or_insert(0) += 1;
+        }
+        
+        prop_assert_eq!(freq_original, freq_sorted);
+    }
+}
+
+// Exercise 2 Solution: Data Structure Properties
+#[derive(Debug, Clone)]
+struct PriorityQueue<T>(BinaryHeap<T>);
+
+impl<T: Ord> PriorityQueue<T> {
+    fn new() -> Self {
+        PriorityQueue(BinaryHeap::new())
+    }
+    
+    fn push(&mut self, item: T) {
+        self.0.push(item);
+    }
+    
+    fn pop(&mut self) -> Option<T> {
+        self.0.pop()
+    }
+    
+    fn peek(&self) -> Option<&T> {
+        self.0.peek()
+    }
+    
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+proptest! {
+    #[test]
+    fn test_priority_queue_properties(operations: Vec<(bool, i32)>) {
+        let mut pq = PriorityQueue::new();
+        let mut max_value = None;
+        
+        // Apply operations: true = push, false = pop
+        for (is_push, value) in operations {
+            if is_push {
+                pq.push(value);
+                max_value = Some(max_value.map_or(value, |m| m.max(value)));
+                
+                // Property 1: Peek should always return maximum value
+                prop_assert_eq!(pq.peek(), max_value.as_ref());
+            } else if let Some(popped) = pq.pop() {
+                // Property 2: Popped value should be the maximum
+                prop_assert_eq!(Some(popped), max_value);
+                
+                // Update max_value
+                max_value = None;
+                let mut temp = pq.clone();
+                while let Some(v) = temp.pop() {
+                    max_value = Some(max_value.map_or(v, |m| m.max(v)));
+                }
+            }
+        }
+    }
+}
+
+// Exercise 3 Solution: Mathematical Properties
+fn gcd(mut a: u32, mut b: u32) -> u32 {
+    while b != 0 {
+        let temp = b;
+        b = a % b;
+        a = temp;
+    }
+    a
+}
+
+fn lcm(a: u32, b: u32) -> Option<u32> {
+    if a == 0 && b == 0 {
+        return Some(0);
+    }
+    
+    let gcd = gcd(a, b);
+    a.checked_mul(b).map(|prod| prod / gcd)
+}
+
+proptest! {
+    #[test]
+    fn test_gcd_properties(a: u32, b: u32) {
+        let g = gcd(a, b);
+        
+        // Property 1: GCD should divide both numbers
+        if a > 0 {
+            prop_assert_eq!(a % g, 0);
+        }
+        if b > 0 {
+            prop_assert_eq!(b % g, 0);
+        }
+        
+        // Property 2: GCD should be positive
+        prop_assert!(g > 0);
+        
+        // Property 3: GCD(a,b) = GCD(b,a)
+        prop_assert_eq!(gcd(a, b), gcd(b, a));
+    }
+    
+    #[test]
+    fn test_lcm_properties(a: u32, b: u32) {
+        if let Some(l) = lcm(a, b) {
+            // Property 1: LCM should be divisible by both numbers
+            if a > 0 {
+                prop_assert_eq!(l % a, 0);
+            }
+            if b > 0 {
+                prop_assert_eq!(l % b, 0);
+            }
+            
+            // Property 2: LCM * GCD = product of numbers
+            if a > 0 && b > 0 {
+                prop_assert_eq!(l * gcd(a, b), a * b);
+            }
+        }
+    }
+}
+```
+</details>
+
+## Integration Testing
+
+### Setting up Integration Tests
+
+```rust title="tests/integration_test.rs"
+use my_crate;
+
+mod common;
+
+#[test]
+fn test_complex_workflow() {
+    let mut system = common::setup_test_system();
+    assert!(system.process_workflow().is_ok());
+}
+```
+
+### Practice Exercise: Integration Testing
+
+```rust title="exercises/integration_test_project.rs"
+// Exercise 1: Create a library with multiple modules and
+// write integration tests that verify their interaction
+
+// Exercise 2: Implement end-to-end tests for a complete workflow
+// using multiple components
+
+// Exercise 3: Create tests that verify the public API of your library
+```
+
+<details>
+<summary>Show Integration Test Solutions</summary>
+
+```rust title="src/lib.rs"
+pub mod user;
+pub mod order;
+pub mod payment;
+
+pub use user::User;
+pub use order::Order;
+pub use payment::Payment;
+
+// Workflow that combines multiple components
+pub struct Workflow {
+    user: User,
+    order: Order,
+    payment: Payment,
+}
+
+impl Workflow {
+    pub fn new(user: User) -> Self {
+        Workflow {
+            user,
+            order: Order::new(),
+            payment: Payment::new(),
+        }
+    }
+    
+    pub fn process(&mut self) -> Result<(), String> {
+        // Validate user
+        if !self.user.is_valid() {
+            return Err("Invalid user".to_string());
+        }
+        
+        // Create order
+        self.order.add_items(&self.user.cart)?;
+        
+        // Process payment
+        self.payment.process(&self.order)?;
+        
+        Ok(())
+    }
+}
+```
+
+```rust title="tests/common/mod.rs"
+use my_crate::{User, Order, Payment, Workflow};
+
+pub fn setup_test_user() -> User {
+    User::new("Test User", "test@example.com")
+}
+
+pub fn setup_test_workflow() -> Workflow {
+    let user = setup_test_user();
+    Workflow::new(user)
+}
+```
+
+```rust title="tests/workflow_test.rs"
+use my_crate::{User, Order, Payment, Workflow};
+mod common;
+
+#[test]
+fn test_successful_workflow() {
+    let mut workflow = common::setup_test_workflow();
+    assert!(workflow.process().is_ok());
+}
+
+#[test]
+fn test_invalid_user_workflow() {
+    let user = User::new("", "");  // Invalid user
+    let mut workflow = Workflow::new(user);
+    assert!(workflow.process().is_err());
+}
+
+#[test]
+fn test_complex_workflow() {
+    let mut workflow = common::setup_test_workflow();
+    
+    // Add items to cart
+    workflow.user.add_to_cart("item1", 2);
+    workflow.user.add_to_cart("item2", 1);
+    
+    // Process workflow
+    let result = workflow.process();
+    assert!(result.is_ok());
+    
+    // Verify order status
+    assert!(workflow.order.is_complete());
+    assert!(workflow.payment.is_successful());
+}
+```
+</details>
+
+## Test Coverage and Quality Metrics
+
+### Using cargo-tarpaulin for Coverage
+
+```bash title="Coverage Command"
+cargo install cargo-tarpaulin
+cargo tarpaulin --ignore-tests
+```
+
+### Practice Exercise: Test Coverage
+
+```rust title="exercises/coverage.rs"
+// Exercise 1: Write tests to achieve 100% coverage for a module
+
+// Exercise 2: Use cargo-tarpaulin to generate coverage reports
+// and identify uncovered code paths
+
+// Exercise 3: Write property tests that cover edge cases
+// and boundary conditions
+```
+
+## Integration Project: Test Suite for a Library
+
+Let's create a complete test suite for a library that combines all the testing concepts we've learned:
+
+```rust title="exercises/library_test_suite.rs"
+// Create a test suite that:
+// 1. Includes unit tests for all components
+// 2. Has integration tests for workflows
+// 3. Uses property testing for complex operations
+// 4. Implements test fixtures and helpers
+// 5. Achieves high test coverage
+
+// TODO: Implement the test suite
+
+fn main() {
+    // TODO: Implement the library and its tests
+}
+```
+
+## Best Practices and Common Patterns
+
+<Callout type="info" title="Testing Best Practices">
+1. Write tests as you code
+2. Test both success and failure cases
+3. Use descriptive test names
+4. Keep tests focused and independent
+5. Use appropriate test fixtures
+6. Aim for high test coverage
+7. Include documentation tests
+</Callout>
+
+## Next Steps
+
+After completing this chapter, you should be able to:
+- Write effective unit tests
+- Create integration tests
+- Use property-based testing
+- Set up test fixtures and helpers
+- Measure and improve test coverage
+- Implement comprehensive test suites
+
+The next chapter will cover advanced patterns and idioms in Rust.
+
+<Cards>
+  <Card
+    title="Rust Testing Guide"
+    href="https://doc.rust-lang.org/book/ch11-00-testing.html"
+  >
+    Official Rust testing documentation
+  </Card>
+  
+  <Card
+    title="proptest Documentation"
+    href="https://docs.rs/proptest"
+  >
+    Documentation for property-based testing
+  </Card>
+</Cards>
