@@ -1,4 +1,5 @@
 {
-  "title": "Section 3: Halo2 Mini App (Coming Soon)",
-  "defaultOpen": "true"
+  "title": "Section 3: Halo2 Mini App",
+  "defaultOpen": "true",
+  "pages": ["---Coming Soon---"]
 }
