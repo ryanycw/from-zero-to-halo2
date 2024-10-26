@@ -1,0 +1,1278 @@
+---
+title: "Chapter 5: Traits and Generics"
+description: "Learn how to write flexible and reusable code using Rust's traits and generics"
+---
+
+# Traits and Generics
+
+## Understanding Traits
+
+Traits define shared behavior across types, similar to interfaces in other languages.
+
+### Basic Trait Definition and Implementation
+
+```rust title="Basic Trait Example"
+trait Summary {
+    fn summarize(&self) -> String;
+    
+    // Default implementation
+    fn default_summary(&self) -> String {
+        String::from("(Read more...)")
+    }
+}
+
+struct NewsArticle {
+    headline: String,
+    location: String,
+    author: String,
+    content: String,
+}
+
+impl Summary for NewsArticle {
+    fn summarize(&self) -> String {
+        format!("{}, by {} ({})", self.headline, self.author, self.location)
+    }
+}
+```
+
+### Practice Exercise: Basic Traits
+
+```rust title="exercises/basic_traits.rs"
+// Exercise 1: Create a trait for shapes that calculates area and perimeter
+// Implement it for different shapes (Circle, Rectangle, Triangle)
+
+// Exercise 2: Create a trait for formatting that provides different string
+// representations (normal, uppercase, lowercase)
+// Implement it for various types
+
+// Exercise 3: Create a trait for data validation with custom error types
+// Implement it for email, phone number, and password validation
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::f64::consts::PI;
+use regex::Regex;
+
+// Exercise 1 Solution
+trait Shape {
+    fn area(&self) -> f64;
+    fn perimeter(&self) -> f64;
+    fn name(&self) -> &str;
+    
+    fn describe(&self) -> String {
+        format!("{}: Area = {:.2}, Perimeter = {:.2}",
+            self.name(), self.area(), self.perimeter())
+    }
+}
+
+struct Circle {
+    radius: f64,
+}
+
+struct Rectangle {
+    width: f64,
+    height: f64,
+}
+
+struct Triangle {
+    sides: [f64; 3],
+}
+
+impl Shape for Circle {
+    fn area(&self) -> f64 {
+        PI * self.radius * self.radius
+    }
+    
+    fn perimeter(&self) -> f64 {
+        2.0 * PI * self.radius
+    }
+    
+    fn name(&self) -> &str {
+        "Circle"
+    }
+}
+
+impl Shape for Rectangle {
+    fn area(&self) -> f64 {
+        self.width * self.height
+    }
+    
+    fn perimeter(&self) -> f64 {
+        2.0 * (self.width + self.height)
+    }
+    
+    fn name(&self) -> &str {
+        "Rectangle"
+    }
+}
+
+impl Shape for Triangle {
+    fn area(&self) -> f64 {
+        let s = self.perimeter() / 2.0;
+        (s * (s - self.sides[0]) * (s - self.sides[1]) * (s - self.sides[2])).sqrt()
+    }
+    
+    fn perimeter(&self) -> f64 {
+        self.sides.iter().sum()
+    }
+    
+    fn name(&self) -> &str {
+        "Triangle"
+    }
+}
+
+// Exercise 2 Solution
+trait Format {
+    fn format_normal(&self) -> String;
+    fn format_uppercase(&self) -> String;
+    fn format_lowercase(&self) -> String;
+}
+
+struct Person {
+    name: String,
+    title: String,
+}
+
+struct Address {
+    street: String,
+    city: String,
+    country: String,
+}
+
+impl Format for Person {
+    fn format_normal(&self) -> String {
+        format!("{} {}", self.title, self.name)
+    }
+    
+    fn format_uppercase(&self) -> String {
+        self.format_normal().to_uppercase()
+    }
+    
+    fn format_lowercase(&self) -> String {
+        self.format_normal().to_lowercase()
+    }
+}
+
+impl Format for Address {
+    fn format_normal(&self) -> String {
+        format!("{}, {}, {}", self.street, self.city, self.country)
+    }
+    
+    fn format_uppercase(&self) -> String {
+        self.format_normal().to_uppercase()
+    }
+    
+    fn format_lowercase(&self) -> String {
+        self.format_normal().to_lowercase()
+    }
+}
+
+// Exercise 3 Solution
+#[derive(Debug)]
+enum ValidationError {
+    InvalidEmail,
+    InvalidPhone,
+    InvalidPassword,
+    Custom(String),
+}
+
+trait Validate {
+    fn validate(&self) -> Result<(), ValidationError>;
+}
+
+struct Email(String);
+struct Phone(String);
+struct Password(String);
+
+impl Validate for Email {
+    fn validate(&self) -> Result<(), ValidationError> {
+        let re = Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap();
+        if re.is_match(&self.0) {
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidEmail)
+        }
+    }
+}
+
+impl Validate for Phone {
+    fn validate(&self) -> Result<(), ValidationError> {
+        let re = Regex::new(r"^\+?[1-9]\d{1,14}$").unwrap();
+        if re.is_match(&self.0) {
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidPhone)
+        }
+    }
+}
+
+impl Validate for Password {
+    fn validate(&self) -> Result<(), ValidationError> {
+        if self.0.len() < 8 {
+            return Err(ValidationError::Custom("Password too short".to_string()));
+        }
+        if !self.0.chars().any(|c| c.is_uppercase()) {
+            return Err(ValidationError::Custom("No uppercase letter".to_string()));
+        }
+        if !self.0.chars().any(|c| c.is_lowercase()) {
+            return Err(ValidationError::Custom("No lowercase letter".to_string()));
+        }
+        if !self.0.chars().any(|c| c.is_digit(10)) {
+            return Err(ValidationError::Custom("No digit".to_string()));
+        }
+        Ok(())
+    }
+}
+
+fn main() {
+    // Test Shape implementations
+    let shapes: Vec<Box<dyn Shape>> = vec![
+        Box::new(Circle { radius: 5.0 }),
+        Box::new(Rectangle { width: 4.0, height: 6.0 }),
+        Box::new(Triangle { sides: [3.0, 4.0, 5.0] }),
+    ];
+    
+    for shape in shapes {
+        println!("{}", shape.describe());
+    }
+    
+    // Test Format implementations
+    let person = Person {
+        name: String::from("Smith"),
+        title: String::from("Mr."),
+    };
+    
+    let address = Address {
+        street: String::from("123 Main St"),
+        city: String::from("Boston"),
+        country: String::from("USA"),
+    };
+    
+    println!("Person normal: {}", person.format_normal());
+    println!("Person upper: {}", person.format_uppercase());
+    println!("Address normal: {}", address.format_normal());
+    println!("Address lower: {}", address.format_lowercase());
+    
+    // Test Validate implementations
+    let email = Email("test@example.com".to_string());
+    let phone = Phone("+1234567890".to_string());
+    let password = Password("SecurePass123".to_string());
+    
+    println!("Email validation: {:?}", email.validate());
+    println!("Phone validation: {:?}", phone.validate());
+    println!("Password validation: {:?}", password.validate());
+}
+```
+</details>
+
+## Trait Bounds
+
+Trait bounds specify what functionality a type must provide by constraining generic type parameters.
+
+```rust title="Trait Bounds Example"
+// Using trait bounds in function declarations
+fn notify<T: Summary>(item: &T) {
+    println!("Breaking news! {}", item.summarize());
+}
+
+// Multiple trait bounds
+fn notify<T: Summary + Display>(item: &T) {
+    println!("Breaking news! {}", item.summarize());
+    println!("(Display: {})", item);
+}
+
+// Where clauses for clearer bounds
+fn some_function<T, U>(t: &T, u: &U) -> i32
+where
+    T: Display + Clone,
+    U: Clone + Debug,
+{
+    // Function implementation
+}
+```
+
+### Practice Exercise: Trait Bounds
+
+```rust title="exercises/trait_bounds.rs"
+// Exercise 1: Create a generic function that works with any type that
+// implements Display and Debug traits
+
+// Exercise 2: Implement a sorting function that works with any type
+// that implements Ord
+
+// Exercise 3: Create a data structure that requires its generic type
+// to implement multiple traits
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::fmt::{Display, Debug};
+use std::cmp::Ord;
+
+// Exercise 1 Solution
+fn describe<T: Display + Debug>(value: &T) -> String {
+    format!("Display: {}\nDebug: {:?}", value, value)
+}
+
+// Exercise 2 Solution
+fn sort_list<T: Ord>(mut list: Vec<T>) -> Vec<T> {
+    list.sort();
+    list
+}
+
+// Exercise 3 Solution
+#[derive(Debug)]
+struct AdvancedList<T>
+where
+    T: Debug + Display + Clone + Ord,
+{
+    items: Vec<T>,
+}
+
+impl<T> AdvancedList<T>
+where
+    T: Debug + Display + Clone + Ord,
+{
+    fn new() -> Self {
+        AdvancedList { items: Vec::new() }
+    }
+    
+    fn add(&mut self, item: T) {
+        self.items.push(item);
+        self.items.sort();
+    }
+    
+    fn remove(&mut self, item: &T) -> bool {
+        if let Some(pos) = self.items.iter().position(|x| x == item) {
+            self.items.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+    
+    fn display_all(&self) -> String {
+        self.items
+            .iter()
+            .map(|item| item.to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
+
+fn main() {
+    // Test Exercise 1
+    let num = 42;
+    let text = "Hello";
+    println!("Number:\n{}", describe(&num));
+    println!("\nText:\n{}", describe(&text));
+    
+    // Test Exercise 2
+    let numbers = vec![4, 2, 8, 1, 9, 5];
+    let sorted = sort_list(numbers);
+    println!("Sorted numbers: {:?}", sorted);
+    
+    let words = vec!["hello", "world", "rust", "programming"];
+    let sorted_words = sort_list(words);
+    println!("Sorted words: {:?}", sorted_words);
+    
+    // Test Exercise 3
+    let mut list = AdvancedList::new();
+    list.add(5);
+    list.add(3);
+    list.add(8);
+    list.add(1);
+    
+    println!("List: {}", list.display_all());
+    println!("Removing 3: {}", list.remove(&3));
+    println!("Updated list: {}", list.display_all());
+}
+```
+</details>
+
+## Generics
+
+### Basic Generic Types
+
+```rust title="Generic Types Example"
+// Generic struct
+struct Point<T> {
+    x: T,
+    y: T,
+}
+
+// Generic enum
+enum Option<T> {
+    Some(T),
+    None,
+}
+
+// Generic implementation
+impl<T> Point<T> {
+    fn new(x: T, y: T) -> Self {
+        Point { x, y }
+    }
+}
+```
+
+### Practice Exercise: Generics
+
+```rust title="exercises/generics.rs"
+// Exercise 1: Create a generic Stack implementation that can work with any type
+
+// Exercise 2: Implement a generic Binary Tree structure with insert and search methods
+
+// Exercise 3: Create a generic Result wrapper that includes context information
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::fmt::Debug;
+
+// Exercise 1 Solution
+#[derive(Debug)]
+struct Stack<T> {
+    items: Vec<T>,
+}
+
+impl<T> Stack<T> {
+    fn new() -> Self {
+        Stack { items: Vec::new() }
+    }
+    
+    fn push(&mut self, item: T) {
+        self.items.push(item);
+    }
+    
+    fn pop(&mut self) -> Option<T> {
+        self.items.pop()
+    }
+    
+    fn peek(&self) -> Option<&T> {
+        self.items.last()
+    }
+    
+    fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+    
+    fn size(&self) -> usize {
+        self.items.len()
+    }
+}
+
+// Exercise 2 Solution
+#[derive(Debug)]
+struct BinaryTree<T>
+where
+    T: Ord + Debug,
+{
+    root: Option<Box<Node<T>>>,
+}
+
+#[derive(Debug)]
+struct Node<T> {
+    value: T,
+    left: Option<Box<Node<T>>>,
+    right: Option<Box<Node<T>>>,
+}
+
+impl<T> BinaryTree<T>
+where
+    T: Ord + Debug,
+{
+    fn new() -> Self {
+        BinaryTree { root: None }
+    }
+    
+    fn insert(&mut self, value: T) {
+        let new_node = Box::new(Node {
+            value,
+            left: None,
+            right: None,
+        });
+        
+        if let Some(root) = &mut self.root {
+            Self::insert_recursive(root, new_node);
+        } else {
+            self.root = Some(new_node);
+        }
+    }
+    
+    fn insert_recursive(node: &mut Box<Node<T>>, new_node: Box<Node<T>>) {
+        if new_node.value <= node.value {
+            if let Some(left) = &mut node.left {
+                Self::insert_recursive(left, new_node);
+            } else {
+                node.left = Some(new_node);
+            }
+        } else {
+            if let Some(right) = &mut node.right {
+                Self::insert_recursive(right, new_node);
+            } else {
+                node.right = Some(new_node);
+            }
+        }
+    }
+    
+    fn search(&self, value: &T) -> bool {
+        Self::search_recursive(&self.root, value)
+    }
+    
+    fn search_recursive(node: &Option<Box<Node<T>>>, value: &T) -> bool {
+        match node {
+            None => false,
+            Some(node) => {
+                if &node.value == value {
+                    true
+                } else if value < &node.value {
+                    Self::search_recursive(&node.left, value)
+                } else {
+                    Self::search_recursive(&node.right, value)
+                }
+            }
+        }
+    }
+}
+
+// Exercise 3 Solution
+#[derive(Debug)]
+struct Context {
+    file: String,
+    line: u32,
+    column: u32,
+}
+
+#[derive(Debug)]
+struct ContextualResult<T, E> {
+    result: Result<T, E>,
+    context: Context,
+}
+
+impl<T, E> ContextualResult<T, E> {
+    fn new(result: Result<T, E>, file: String, line: u32, column: u32) -> Self {
+        ContextualResult {
+            result,
+            context: Context { file, line, column },
+        }
+    }
+    
+    fn is_ok(&self) -> bool {
+        self.result.is_ok()
+    }
+    
+    fn is_err(&self) -> bool {
+        self.result.is_err()
+    }
+    
+    fn unwrap(self) -> T
+    where
+        E: Debug,
+    {
+        match self.result {
+            Ok(value) => value,
+            Err(e) => panic!("Error at {}:{}:{}: {:?}", 
+                self.context.file,
+                self.context.line,
+                self.context.column,
+                e),
+        }
+    }
+}
+
+fn main() {
+    // Test Stack
+    let mut stack = Stack::new();
+    stack.push(1);
+    stack.push(2);
+    stack.push(3);
+    
+    println!("Stack: {:?}", stack);
+    println!("Pop: {:?}", stack.pop());
+    println!("Peek: {:?}", stack.peek());
+    println!("Size: {}", stack.size());
+    
+    // Test BinaryTree
+    let mut tree = BinaryTree::new();
+    tree.insert(5);
+    tree.insert(3);
+    tree.insert(7);
+    tree.insert(1);
+    tree.insert(9);
+    
+    println!("Tree: {:?}", tree);
+    println!("Search 3: {}", tree.search(&3));
+    println!("Search 6: {}", tree.search(&6));
+    
+    // Test ContextualResult
+    let success: ContextualResult<i32, &str> = ContextualResult::new(
+        Ok(42),
+        "main.rs".to_string(),
+        10,
+        5
+    );
+    
+    let error: ContextualResult<i32, &str> = ContextualResult::new(
+        Err("division by zero"),
+        "main.rs".to_string(),
+        15,
+        20
+    );
+    
+    println!("Success result: {:?}", success);
+    println!("Error result: {:?}", error);
+}
+```
+</details>
+
+## Integration Project: Generic Data Processing Pipeline
+
+Let's combine traits and generics in a practical project:
+
+```rust title="exercises/data_pipeline.rs"
+// Create a data processing pipeline that:
+// 1. Can work with different data types
+// 2. Supports various transformation operations
+// 3. Handles errors gracefully
+// 4. Allows for custom processing steps
+// 5. Provides progress tracking and validation
+
+// TODO: Implement the data pipeline
+
+fn main() {
+    // TODO: Test the data pipeline
+}
+```
+
+<details>
+<summary>Show Complete Solution</summary>
+
+```rust
+use std::fmt::Debug;
+use std::error::Error;
+
+// Data processing traits
+trait Processor<T, U> {
+    fn process(&self, input: T) -> Result<U, Box<dyn Error>>;
+    fn name(&self) -> &str;
+}
+
+trait Validator<T> {
+    fn validate(&self, input: &T) -> Result<(), Box<dyn Error>>;
+}
+
+// Progress tracking
+#[derive(Debug)]
+struct ProcessingStats {
+    total_items: usize,
+    processed_items: usize,
+    successful_items: usize,
+    failed_items: usize,
+}
+
+// Pipeline implementation
+struct Pipeline<T, U> {
+    processors: Vec<Box<dyn Processor<T, U>>>,
+    validators: Vec<Box<dyn Validator<U>>>,
+    stats: ProcessingStats,
+}
+
+impl<T, U> Pipeline<T, U>
+where
+    T: Debug,
+    U: Debug,
+{
+    fn new() -> Self {
+        Pipeline {
+            processors: Vec::new(),
+            validators: Vec::new(),
+            stats: ProcessingStats {
+                total_items: 0,
+                processed_items: 0,
+                successful_items: 0,
+                failed_items: 0,
+            },
+        }
+    }
+    
+    fn add_processor<P: Processor<T, U> + 'static>(&mut self, processor: P) {
+        self.processors.push(Box::new(processor));
+    }
+    
+    fn add_validator<V: Validator<U> + 'static>(&mut self, validator: V) {
+        self.validators.push(Box::new(validator));
+    }
+    
+    fn process(&mut self, input: Vec<T>) -> Vec<Result<U, Box<dyn Error>>> {
+        self.stats.total_items = input.len();
+        
+        let mut results = Vec::new();
+        
+        for item in input {
+            self.stats.processed_items += 1;
+            
+            let mut current_result: Result<U, Box<dyn Error>> = Err("No processors".into());
+            
+            // Run through all processors
+            for processor in &self.processors {
+                match processor.process(item) {
+                    Ok(result) => {
+                        current_result = Ok(result);
+                        println!("Processor '{}' succeeded", processor.name());
+                    }
+                    Err(e) => {
+                        current_result = Err(e);
+                        println!("Processor '{}' failed", processor.name());
+                        break;
+                    }
+                }
+            }
+            
+            // Validate results if processing was successful
+            if let Ok(ref result) = current_result {
+                for validator in &self.validators {
+                    if let Err(e) = validator.validate(result) {
+                        current_result = Err(e);
+                        break;
+                    }
+                }
+            }
+            
+            // Update statistics
+            match current_result {
+                Ok(_) => self.stats.successful_items += 1,
+                Err(_) => self.stats.failed_items += 1,
+            }
+            
+            results.push(current_result);
+        }
+        
+        results
+    }
+    
+    fn get_stats(&self) -> &ProcessingStats {
+        &self.stats
+    }
+}
+
+// Example implementations
+struct NumberDoubler;
+struct NumberValidator;
+
+impl Processor<i32, i32> for NumberDoubler {
+    fn process(&self, input: i32) -> Result<i32, Box<dyn Error>> {
+        Ok(input * 2)
+    }
+    
+    fn name(&self) -> &str {
+        "NumberDoubler"
+    }
+}
+
+impl Validator<i32> for NumberValidator {
+    fn validate(&self, input: &i32) -> Result<(), Box<dyn Error>> {
+        if *input > 100 {
+            Err("Number too large".into())
+        } else {
+            Ok(())
+        }
+    }
+}
+
+fn main() {
+    // Create pipeline
+    let mut pipeline: Pipeline<i32, i32> = Pipeline::new();
+    
+    // Add processors and validators
+    pipeline.add_processor(NumberDoubler);
+    pipeline.add_validator(NumberValidator);
+    
+    // Process data
+    let input = vec![10, 20, 30, 60];
+    let results = pipeline.process(input);
+    
+    // Print results
+    for (i, result) in results.iter().enumerate() {
+        match result {
+            Ok(value) => println!("Item {}: Success - {}", i, value),
+            Err(e) => println!("Item {}: Error - {}", i, e),
+        }
+    }
+    
+    // Print statistics
+    println!("\nProcessing Statistics:");
+    println!("{:#?}", pipeline.get_stats());
+}
+```
+</details>
+
+## Additional Topics
+
+### Default Type Parameters
+
+```rust title="Default Type Parameters Example"
+struct Point<T = i32> {
+    x: T,
+    y: T,
+}
+
+impl<T> Add for Point<T>
+where
+    T: Add<Output = T>,
+{
+    type Output = Point<T>;
+
+    fn add(self, other: Point<T>) -> Point<T> {
+        Point {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
+}
+```
+
+### Practice Exercise: Advanced Trait Features
+
+```rust title="exercises/advanced_traits.rs"
+// Exercise 1: Create a trait with associated types and implement it
+// for different data structures
+
+// Exercise 2: Implement operator overloading using traits for a custom type
+
+// Exercise 3: Create a trait with default type parameters and blanket implementations
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::ops::{Add, Mul};
+
+// Exercise 1 Solution
+trait Container {
+    type Item;
+    
+    fn add(&mut self, item: Self::Item);
+    fn remove(&mut self) -> Option<Self::Item>;
+    fn is_empty(&self) -> bool;
+}
+
+struct Stack<T> {
+    items: Vec<T>,
+}
+
+impl<T> Container for Stack<T> {
+    type Item = T;
+    
+    fn add(&mut self, item: Self::Item) {
+        self.items.push(item);
+    }
+    
+    fn remove(&mut self) -> Option<Self::Item> {
+        self.items.pop()
+    }
+    
+    fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+}
+
+// Exercise 2 Solution
+#[derive(Debug, Clone, Copy)]
+struct Complex {
+    real: f64,
+    imag: f64,
+}
+
+impl Complex {
+    fn new(real: f64, imag: f64) -> Self {
+        Complex { real, imag }
+    }
+}
+
+impl Add for Complex {
+    type Output = Complex;
+    
+    fn add(self, other: Complex) -> Complex {
+        Complex {
+            real: self.real + other.real,
+            imag: self.imag + other.imag,
+        }
+    }
+}
+
+impl Mul for Complex {
+    type Output = Complex;
+    
+    fn mul(self, other: Complex) -> Complex {
+        Complex {
+            real: self.real * other.real - self.imag * other.imag,
+            imag: self.real * other.imag + self.imag * other.real,
+        }
+    }
+}
+
+// Exercise 3 Solution
+trait Collection<T = i32> {
+    fn insert(&mut self, item: T);
+    fn contains(&self, item: &T) -> bool where T: PartialEq;
+    fn size(&self) -> usize;
+}
+
+impl<T> Collection<T> for Vec<T> {
+    fn insert(&mut self, item: T) {
+        self.push(item);
+    }
+    
+    fn contains(&self, item: &T) -> bool 
+    where T: PartialEq
+    {
+        self.contains(item)
+    }
+    
+    fn size(&self) -> usize {
+        self.len()
+    }
+}
+
+fn main() {
+    // Test Container implementation
+    let mut stack = Stack { items: Vec::new() };
+    stack.add(1);
+    stack.add(2);
+    stack.add(3);
+    
+    while let Some(item) = stack.remove() {
+        println!("Popped: {}", item);
+    }
+    
+    // Test Complex number operations
+    let c1 = Complex::new(1.0, 2.0);
+    let c2 = Complex::new(3.0, 4.0);
+    
+    let sum = c1 + c2;
+    let product = c1 * c2;
+    
+    println!("Sum: {:?}", sum);
+    println!("Product: {:?}", product);
+    
+    // Test Collection trait
+    let mut numbers: Vec<i32> = Vec::new();
+    numbers.insert(1);
+    numbers.insert(2);
+    numbers.insert(3);
+    
+    println!("Contains 2: {}", numbers.contains(&2));
+    println!("Size: {}", numbers.size());
+}
+```
+</details>
+
+## Associated Types vs Generic Parameters
+
+### When to Use Each
+
+```rust title="Associated Types vs Generics Example"
+// Using associated types
+trait Container {
+    type Item;
+    fn insert(&mut self, item: Self::Item);
+    fn get(&self) -> Option<&Self::Item>;
+}
+
+// Using generic parameters
+trait GenericContainer<T> {
+    fn insert(&mut self, item: T);
+    fn get(&self) -> Option<&T>;
+}
+```
+
+<Callout type="info">
+Use associated types when:
+- Each implementation should only work with one type
+- You want to simplify the trait bounds syntax
+
+Use generic parameters when:
+- You want multiple implementations for different types
+- You need flexibility in type parameters
+</Callout>
+
+### Practice Exercise: Type System Features
+
+```rust title="exercises/type_system.rs"
+// Exercise 1: Create a trait that demonstrates when to use
+// associated types vs generic parameters
+
+// Exercise 2: Implement a type-safe builder pattern using generics
+
+// Exercise 3: Create a state machine using the type system to
+// enforce valid state transitions
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::marker::PhantomData;
+
+// Exercise 1 Solution
+// Associated type example
+trait DataStore {
+    type Key;
+    type Value;
+    
+    fn insert(&mut self, key: Self::Key, value: Self::Value);
+    fn get(&self, key: &Self::Key) -> Option<&Self::Value>;
+}
+
+// Generic parameter example
+trait Converter<In, Out> {
+    fn convert(&self, input: In) -> Out;
+}
+
+// Exercise 2 Solution
+#[derive(Debug)]
+struct Server {
+    host: String,
+    port: u16,
+    max_connections: u32,
+    timeout: u32,
+}
+
+struct ServerBuilder<State> {
+    host: Option<String>,
+    port: Option<u16>,
+    max_connections: Option<u32>,
+    timeout: Option<u32>,
+    _state: PhantomData<State>,
+}
+
+// State types
+struct Initial;
+struct WithHost;
+struct WithPort;
+struct Ready;
+
+impl ServerBuilder<Initial> {
+    fn new() -> Self {
+        ServerBuilder {
+            host: None,
+            port: None,
+            max_connections: None,
+            timeout: None,
+            _state: PhantomData,
+        }
+    }
+    
+    fn host(self, host: impl Into<String>) -> ServerBuilder<WithHost> {
+        ServerBuilder {
+            host: Some(host.into()),
+            port: self.port,
+            max_connections: self.max_connections,
+            timeout: self.timeout,
+            _state: PhantomData,
+        }
+    }
+}
+
+impl ServerBuilder<WithHost> {
+    fn port(self, port: u16) -> ServerBuilder<WithPort> {
+        ServerBuilder {
+            host: self.host,
+            port: Some(port),
+            max_connections: self.max_connections,
+            timeout: self.timeout,
+            _state: PhantomData,
+        }
+    }
+}
+
+impl ServerBuilder<WithPort> {
+    fn max_connections(mut self, max: u32) -> Self {
+        self.max_connections = Some(max);
+        self
+    }
+    
+    fn timeout(mut self, timeout: u32) -> Self {
+        self.timeout = Some(timeout);
+        self
+    }
+    
+    fn build(self) -> Server {
+        Server {
+            host: self.host.unwrap(),
+            port: self.port.unwrap(),
+            max_connections: self.max_connections.unwrap_or(100),
+            timeout: self.timeout.unwrap_or(30),
+        }
+    }
+}
+
+// Exercise 3 Solution
+struct DoorClosed;
+struct DoorOpen;
+struct DoorLocked;
+
+struct Door<State> {
+    _state: PhantomData<State>,
+}
+
+impl Door<DoorClosed> {
+    fn new() -> Self {
+        Door { _state: PhantomData }
+    }
+    
+    fn open(self) -> Door<DoorOpen> {
+        println!("Opening door");
+        Door { _state: PhantomData }
+    }
+    
+    fn lock(self) -> Door<DoorLocked> {
+        println!("Locking door");
+        Door { _state: PhantomData }
+    }
+}
+
+impl Door<DoorOpen> {
+    fn close(self) -> Door<DoorClosed> {
+        println!("Closing door");
+        Door { _state: PhantomData }
+    }
+}
+
+impl Door<DoorLocked> {
+    fn unlock(self) -> Door<DoorClosed> {
+        println!("Unlocking door");
+        Door { _state: PhantomData }
+    }
+}
+
+fn main() {
+    // Test DataStore and Converter
+    
+    // Test ServerBuilder
+    let server = ServerBuilder::new()
+        .host("localhost")
+        .port(8080)
+        .max_connections(1000)
+        .timeout(60)
+        .build();
+    
+    println!("Server config: {:?}", server);
+    
+    // Test Door State Machine
+    let door = Door::new();
+    let door = door.open();
+    let door = door.close();
+    let door = door.lock();
+    let door = door.unlock();
+    let _door = door.open();
+}
+```
+</details>
+
+## Best Practices and Common Patterns
+
+<Callout type="info" title="Trait Design Guidelines">
+1. Follow the Interface Segregation Principle
+   - Keep traits focused and minimal
+   - Split large traits into smaller ones
+
+2. Provide Default Implementations When Appropriate
+   - Reduce boilerplate code
+   - Allow for customization when needed
+
+3. Use Trait Bounds Wisely
+   - Be as generic as possible
+   - Add constraints only when necessary
+
+4. Consider Type Safety
+   - Use the type system to prevent invalid states
+   - Leverage compile-time checks
+</Callout>
+
+## Common Mistakes and Solutions
+
+<Callout type="warn" title="Common Pitfalls">
+1. **Trait Object Limitations**
+   ```rust
+   // Won't work:
+   fn returns_sized<T: MyTrait>(x: i32) -> T { ... }
+   
+   // Instead use:
+   fn returns_trait_object(x: i32) -> Box<dyn MyTrait> { ... }
+   ```
+
+2. **Orphan Rule Violations**
+   ```rust
+   // Won't compile - implementing external traits for external types
+   impl Display for Vec<T> { ... }
+   
+   // Instead use a wrapper type:
+   struct MyVec<T>(Vec<T>);
+   impl<T: Display> Display for MyVec<T> { ... }
+   ```
+
+3. **Generic Type Parameter Overuse**
+   ```rust
+   // Too generic:
+   fn process<T, U, V, W>(t: T, u: U) -> Result<V, W> { ... }
+   
+   // Better:
+   fn process<T: Convert>(input: T) -> Result<Output, Error> { ... }
+   ```
+</Callout>
+
+## Next Steps
+
+After completing this chapter, you should be able to:
+- Design and implement traits
+- Use generics effectively
+- Understand trait bounds and associated types
+- Create type-safe APIs
+- Apply common trait patterns
+
+The next chapter will cover concurrency and asynchronous programming in Rust.
+
+<Cards>
+  <Card
+    title="Rust Design Patterns"
+    href="https://rust-unofficial.github.io/patterns/"
+  >
+    Learn more about Rust design patterns
+  </Card>
+  
+  <Card
+    title="Trait Implementation Guidelines"
+    href="https://rust-lang.github.io/api-guidelines/about.html"
+  >
+    Official Rust API guidelines
+  </Card>
+</Cards>
