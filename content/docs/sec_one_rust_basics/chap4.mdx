@@ -1,0 +1,1056 @@
+---
+title: "Chapter 4: Structs, Enums, and Pattern Matching"
+description: "Learn how to use Rust's structured data types and pattern matching to write more expressive code"
+---
+
+# Structs, Enums, and Pattern Matching
+
+## Structs
+
+### Defining and Using Structs
+
+Structs allow you to create custom data types that group related values:
+
+```rust title="Basic Struct Example"
+struct User {
+    username: String,
+    email: String,
+    sign_in_count: u64,
+    active: bool,
+}
+
+fn main() {
+    let user = User {
+        email: String::from("user@example.com"),
+        username: String::from("username123"),
+        active: true,
+        sign_in_count: 1,
+    };
+}
+```
+
+### Practice Exercise: Basic Structs
+
+```rust title="exercises/basic_structs.rs"
+// Exercise 1: Create a Point struct and implement methods to:
+// - Create a new point
+// - Calculate distance from origin
+// - Calculate distance between two points
+// - Implement Display trait for nice printing
+
+// Exercise 2: Create a Rectangle struct and implement methods to:
+// - Calculate area
+// - Calculate perimeter
+// - Check if one rectangle can fit inside another
+struct Point {
+    // TODO: Implement Point
+}
+
+struct Rectangle {
+    // TODO: Implement Rectangle
+}
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::fmt;
+
+#[derive(Debug)]
+struct Point {
+    x: f64,
+    y: f64,
+}
+
+impl Point {
+    fn new(x: f64, y: f64) -> Self {
+        Point { x, y }
+    }
+    
+    fn distance_from_origin(&self) -> f64 {
+        (self.x.powi(2) + self.y.powi(2)).sqrt()
+    }
+    
+    fn distance_to(&self, other: &Point) -> f64 {
+        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
+    }
+}
+
+impl fmt::Display for Point {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Point({}, {})", self.x, self.y)
+    }
+}
+
+#[derive(Debug)]
+struct Rectangle {
+    width: f64,
+    height: f64,
+}
+
+impl Rectangle {
+    fn new(width: f64, height: f64) -> Self {
+        Rectangle { width, height }
+    }
+    
+    fn area(&self) -> f64 {
+        self.width * self.height
+    }
+    
+    fn perimeter(&self) -> f64 {
+        2.0 * (self.width + self.height)
+    }
+    
+    fn can_fit_inside(&self, other: &Rectangle) -> bool {
+        self.width <= other.width && self.height <= other.height ||
+        self.width <= other.height && self.height <= other.width
+    }
+}
+
+fn main() {
+    // Test Point implementation
+    let p1 = Point::new(3.0, 4.0);
+    let p2 = Point::new(0.0, 0.0);
+    
+    println!("Distance from origin: {}", p1.distance_from_origin());
+    println!("Distance between points: {}", p1.distance_to(&p2));
+    println!("Point format: {}", p1);
+    
+    // Test Rectangle implementation
+    let rect1 = Rectangle::new(5.0, 10.0);
+    let rect2 = Rectangle::new(15.0, 20.0);
+    
+    println!("Rectangle 1 area: {}", rect1.area());
+    println!("Rectangle 1 perimeter: {}", rect1.perimeter());
+    println!("Can rect1 fit in rect2? {}", rect1.can_fit_inside(&rect2));
+}
+```
+</details>
+
+### Tuple Structs and Unit-Like Structs
+
+```rust title="Different Struct Types"
+// Tuple struct
+struct Color(i32, i32, i32);
+
+// Unit-like struct
+struct AlwaysEqual;
+
+// Using tuple structs
+let black = Color(0, 0, 0);
+let unit = AlwaysEqual;
+```
+
+### Practice Exercise: Advanced Structs
+
+```rust title="exercises/advanced_structs.rs"
+// Exercise 1: Create a NewType pattern struct for an email address
+// that validates the email format
+
+// Exercise 2: Create a RGB and HSV color struct and implement
+// conversion between them
+
+// Exercise 3: Implement a struct that uses lifetimes to hold
+// a reference to a string, and implement Clone and Copy for it
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::fmt;
+use regex::Regex;
+
+// Exercise 1 Solution
+#[derive(Debug)]
+struct Email(String);
+
+impl Email {
+    fn new(email: &str) -> Result<Email, &'static str> {
+        let re = Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap();
+        if re.is_match(email) {
+            Ok(Email(email.to_string()))
+        } else {
+            Err("Invalid email format")
+        }
+    }
+}
+
+// Exercise 2 Solution
+#[derive(Debug)]
+struct RGB {
+    r: u8,
+    g: u8,
+    b: u8,
+}
+
+#[derive(Debug)]
+struct HSV {
+    h: f64, // 0-360
+    s: f64, // 0-1
+    v: f64, // 0-1
+}
+
+impl RGB {
+    fn to_hsv(&self) -> HSV {
+        let r = self.r as f64 / 255.0;
+        let g = self.g as f64 / 255.0;
+        let b = self.b as f64 / 255.0;
+        
+        let max = r.max(g.max(b));
+        let min = r.min(g.min(b));
+        let delta = max - min;
+        
+        let h = if delta == 0.0 {
+            0.0
+        } else if max == r {
+            60.0 * (((g - b) / delta) % 6.0)
+        } else if max == g {
+            60.0 * ((b - r) / delta + 2.0)
+        } else {
+            60.0 * ((r - g) / delta + 4.0)
+        };
+        
+        let s = if max == 0.0 { 0.0 } else { delta / max };
+        
+        HSV {
+            h: if h < 0.0 { h + 360.0 } else { h },
+            s,
+            v: max,
+        }
+    }
+}
+
+// Exercise 3 Solution
+#[derive(Clone, Copy)]
+struct StrWrapper<'a> {
+    text: &'a str,
+}
+
+impl<'a> StrWrapper<'a> {
+    fn new(text: &'a str) -> Self {
+        StrWrapper { text }
+    }
+}
+
+impl<'a> fmt::Display for StrWrapper<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.text)
+    }
+}
+
+fn main() {
+    // Test Email
+    match Email::new("test@example.com") {
+        Ok(email) => println!("Valid email: {:?}", email),
+        Err(e) => println!("Error: {}", e),
+    }
+    
+    // Test RGB to HSV conversion
+    let rgb = RGB { r: 255, g: 0, b: 0 };
+    let hsv = rgb.to_hsv();
+    println!("RGB: {:?} -> HSV: {:?}", rgb, hsv);
+    
+    // Test StrWrapper
+    let text = "Hello, world!";
+    let wrapper = StrWrapper::new(text);
+    let copied = wrapper;  // Copy trait in action
+    println!("Original: {}", wrapper);
+    println!("Copied: {}", copied);
+}
+```
+</details>
+
+## Enums
+
+### Basic Enums
+
+```rust title="Basic Enum Example"
+enum Message {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+    ChangeColor(i32, i32, i32),
+}
+
+impl Message {
+    fn call(&self) {
+        // Method implementation
+    }
+}
+```
+
+### Practice Exercise: Basic Enums
+
+```rust title="exercises/basic_enums.rs"
+// Exercise 1: Create an enum representing different shapes
+// (Circle, Rectangle, Triangle) and implement area calculation
+
+// Exercise 2: Create an enum for different types of commands
+// (with and without data) and implement their execution
+
+// Exercise 3: Implement an enum-based linked list for integers
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+// Exercise 1 Solution
+#[derive(Debug)]
+enum Shape {
+    Circle(f64),  // radius
+    Rectangle(f64, f64),  // width, height
+    Triangle(f64, f64, f64),  // three sides
+}
+
+impl Shape {
+    fn area(&self) -> f64 {
+        match self {
+            Shape::Circle(radius) => std::f64::consts::PI * radius * radius,
+            Shape::Rectangle(width, height) => width * height,
+            Shape::Triangle(a, b, c) => {
+                // Heron's formula
+                let s = (a + b + c) / 2.0;
+                (s * (s - a) * (s - b) * (s - c)).sqrt()
+            }
+        }
+    }
+}
+
+// Exercise 2 Solution
+#[derive(Debug)]
+enum Command {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+    ChangeColor { r: u8, g: u8, b: u8 },
+}
+
+impl Command {
+    fn execute(&self) -> String {
+        match self {
+            Command::Quit => "Quitting...".to_string(),
+            Command::Move { x, y } => format!("Moving to position ({}, {})", x, y),
+            Command::Write(text) => format!("Writing: {}", text),
+            Command::ChangeColor { r, g, b } => 
+                format!("Changing color to RGB({}, {}, {})", r, g, b),
+        }
+    }
+}
+
+// Exercise 3 Solution
+#[derive(Debug)]
+enum List {
+    Nil,
+    Cons(i32, Box<List>),
+}
+
+impl List {
+    fn new() -> List {
+        List::Nil
+    }
+    
+    fn push(self, value: i32) -> List {
+        List::Cons(value, Box::new(self))
+    }
+    
+    fn len(&self) -> usize {
+        match self {
+            List::Nil => 0,
+            List::Cons(_, tail) => 1 + tail.len(),
+        }
+    }
+    
+    fn to_string(&self) -> String {
+        match self {
+            List::Nil => String::from("Nil"),
+            List::Cons(value, tail) => {
+                format!("{} -> {}", value, tail.to_string())
+            }
+        }
+    }
+}
+
+fn main() {
+    // Test Shape implementations
+    let shapes = vec![
+        Shape::Circle(5.0),
+        Shape::Rectangle(4.0, 6.0),
+        Shape::Triangle(3.0, 4.0, 5.0),
+    ];
+    
+    for shape in shapes {
+        println!("Area of {:?}: {}", shape, shape.area());
+    }
+    
+    // Test Command implementations
+    let commands = vec![
+        Command::Move { x: 10, y: 20 },
+        Command::Write(String::from("Hello")),
+        Command::ChangeColor { r: 255, g: 0, b: 0 },
+        Command::Quit,
+    ];
+    
+    for cmd in commands {
+        println!("Executing {:?}: {}", cmd, cmd.execute());
+    }
+    
+    // Test List implementation
+    let list = List::new()
+        .push(1)
+        .push(2)
+        .push(3);
+    
+    println!("List: {}", list.to_string());
+    println!("Length: {}", list.len());
+}
+```
+</details>
+
+## Pattern Matching
+
+### The match Control Flow Operator
+
+```rust title="Basic Match Example"
+enum Coin {
+    Penny,
+    Nickel,
+    Dime,
+    Quarter(UsState),
+}
+
+#[derive(Debug)]
+enum UsState {
+    Alabama,
+    Alaska,
+    // ... etc
+}
+
+fn value_in_cents(coin: Coin) -> u8 {
+    match coin {
+        Coin::Penny => 1,
+        Coin::Nickel => 5,
+        Coin::Dime => 10,
+        Coin::Quarter(state) => {
+            println!("State quarter from {:?}!", state);
+            25
+        }
+    }
+}
+```
+
+### Practice Exercise: Pattern Matching
+
+```rust title="exercises/pattern_matching.rs"
+// Exercise 1: Create a function that matches different types of values
+// and performs different operations based on the type
+
+// Exercise 2: Implement a simple calculator using pattern matching
+// that handles binary operations and reports errors for invalid inputs
+
+// Exercise 3: Create a state machine using enums and pattern matching
+// that simulates a traffic light system
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+// Exercise 1 Solution
+#[derive(Debug)]
+enum Value {
+    Number(f64),
+    Text(String),
+    Boolean(bool),
+    List(Vec<i32>),
+}
+
+fn process_value(value: Value) -> String {
+    match value {
+        Value::Number(n) => format!("Number squared: {}", n * n),
+        Value::Text(s) if s.len() > 10 => format!("Long text: {}...", &s[0..10]),
+        Value::Text(s) => format!("Text: {}", s),
+        Value::Boolean(true) => "True condition".to_string(),
+        Value::Boolean(false) => "False condition".to_string(),
+        Value::List(v) if v.is_empty() => "Empty list".to_string(),
+        Value::List(v) => format!("List sum: {}", v.iter().sum::<i32>()),
+    }
+}
+
+// Exercise 2 Solution
+#[derive(Debug)]
+enum Operation {
+    Add(f64, f64),
+    Subtract(f64, f64),
+    Multiply(f64, f64),
+    Divide(f64, f64),
+}
+
+#[derive(Debug)]
+enum CalculationError {
+    DivisionByZero,
+    InvalidOperation,
+}
+
+fn calculate(op: Operation) -> Result<f64, CalculationError> {
+    match op {
+        Operation::Add(a, b) => Ok(a + b),
+        Operation::Subtract(a, b) => Ok(a - b),
+        Operation::Multiply(a, b) => Ok(a * b),
+        Operation::Divide(a, b) => {
+            if b == 0.0 {
+                Err(CalculationError::DivisionByZero)
+            } else {
+                Ok(a / b)
+            }
+        }
+    }
+}
+
+// Exercise 3 Solution
+#[derive(Debug)]
+enum TrafficLight {
+    Red,
+    Yellow,
+    Green,
+}
+
+impl TrafficLight {
+    fn next_state(&self) -> TrafficLight {
+        match self {
+            TrafficLight::Red => TrafficLight::Green,
+            TrafficLight::Yellow => TrafficLight::Red,
+            TrafficLight::Green => TrafficLight::Yellow,
+        }
+    }
+    
+    fn duration(&self) -> u32 {
+        match self {
+            TrafficLight::Red => 30,    // 30 seconds
+            TrafficLight::Yellow => 5,   // 5 seconds
+            TrafficLight::Green => 45,   // 45 seconds
+        }
+    }
+}
+
+fn main() {
+    // Test Value processing
+    let values = vec![
+        Value::Number(42.0),
+        Value::Text(String::from("Hello, World!")),
+        Value::Boolean(true),
+        Value::List(vec![1, 2, 3, 4, 5]),
+    ];
+    
+    for value in values {
+        println!("{:?} -> {}", value, process_value(value));
+    }
+    
+    // Test Calculator
+    let operations = vec![
+        Operation::Add(5.0, 3.0),
+        Operation::Subtract(10.0, 5.0),
+        Operation::Multiply(4.0, 2.5),
+        Operation::Divide(15.0, 3.0),
+        Operation::Divide(10.0, 0.0),
+    ];
+    
+    for op in operations {
+        match calculate(op) {
+            Ok(result) => println!("{:?} = {}", op, result),
+            Err(error) => println!("{:?} resulted in error: {:?}", op, error),
+        }
+    }
+    
+    // Test Traffic Light
+    let mut light = TrafficLight::Red;
+    for _ in 0..6 {
+        println!(
+            "Traffic light is {:?}, duration: {} seconds",
+            light,
+            light.duration()
+        );
+        light = light.next_state();
+    }
+}
+```
+</details>
+
+## Option and Result Types
+
+### Working with Option
+
+```rust title="Option Examples"
+fn divide(numerator: f64, denominator: f64) -> Option<f64> {
+    if denominator == 0.0 {
+        None
+    } else {
+        Some(numerator / denominator)
+    }
+}
+
+// Using match with Option
+match divide(4.0, 2.0) {
+    Some(result) => println!("Result: {}", result),
+    None => println!("Cannot divide by zero"),
+}
+
+// Using if let
+if let Some(result) = divide(4.0, 2.0) {
+    println!("Result: {}", result);
+}
+```
+
+### Practice Exercise: Option and Result
+
+```rust title="exercises/option_result.rs"
+// Exercise 1: Implement a safe array access function that returns Option
+
+// Exercise 2: Create a function that converts strings to integers
+// and handles errors using Result
+
+// Exercise 3: Implement a function that chains multiple Operations
+// using combine_results pattern
+
+fn main() {
+    // Test your implementations here
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+// Exercise 1 Solution
+fn safe_array_access<T>(arr: &[T], index: usize) -> Option<&T> {
+    if index < arr.len() {
+        Some(&arr[index])
+    } else {
+        None
+    }
+}
+
+// Exercise 2 Solution
+#[derive(Debug)]
+enum ParseError {
+    Empty,
+    Invalid(String),
+}
+
+fn parse_positive_integer(s: &str) -> Result<u32, ParseError> {
+    if s.is_empty() {
+        return Err(ParseError::Empty);
+    }
+    
+    match s.parse::<u32>() {
+        Ok(num) => Ok(num),
+        Err(_) => Err(ParseError::Invalid(s.to_string())),
+    }
+}
+
+// Exercise 3 Solution
+#[derive(Debug)]
+struct User {
+    id: u32,
+    name: String,
+    age: Option<u32>,
+}
+
+impl User {
+    fn new(id: u32, name: String) -> User {
+        User {
+            id,
+            name,
+            age: None,
+        }
+    }
+    
+    fn set_age(&mut self, age: u32) -> Result<(), String> {
+        if age > 150 {
+            return Err("Invalid age".to_string());
+        }
+        self.age = Some(age);
+        Ok(())
+    }
+    
+    fn get_birth_year(&self) -> Option<u32> {
+        self.age.map(|age| 2024 - age)
+    }
+}
+
+fn main() {
+    // Test safe array access
+    let numbers = vec![1, 2, 3, 4, 5];
+    println!("Index 2: {:?}", safe_array_access(&numbers, 2));
+    println!("Index 10: {:?}", safe_array_access(&numbers, 10));
+    
+    // Test string parsing
+    let test_strings = vec!["123", "", "abc", "42"];
+    for s in test_strings {
+        match parse_positive_integer(s) {
+            Ok(num) => println!("Successfully parsed '{}' as {}", s, num),
+            Err(e) => println!("Failed to parse '{}': {:?}", s, e),
+        }
+    }
+    
+    // Test User operations
+    let mut user = User::new(1, "Alice".to_string());
+    
+    match user.set_age(30) {
+        Ok(()) => println!("Age set successfully"),
+        Err(e) => println!("Error setting age: {}", e),
+    }
+    
+    if let Some(birth_year) = user.get_birth_year() {
+        println!("Birth year: {}", birth_year);
+    }
+    
+    println!("User: {:?}", user);
+}
+```
+</details>
+
+## Integration Project: Command Parser
+
+Let's combine everything we've learned to create a command parser:
+
+```rust title="exercises/command_parser.rs"
+// Create a command parser that:
+// 1. Defines different types of commands using enums
+// 2. Parses string input into commands
+// 3. Handles errors gracefully
+// 4. Executes commands with proper error handling
+// 5. Maintains state between commands
+
+// TODO: Implement the command parser
+
+fn main() {
+    // TODO: Test the command parser
+}
+```
+
+<details>
+```rust title="exercises/command_parser.rs (Complete Solution)"
+use std::collections::HashMap;
+use std::io::{self, Write};
+
+#[derive(Debug)]
+enum Command {
+    Set { key: String, value: String },
+    Get { key: String },
+    Delete { key: String },
+    Clear,
+    List,
+    Exit,
+}
+
+#[derive(Debug)]
+enum ParseError {
+    InvalidCommand,
+    MissingArguments,
+    TooManyArguments,
+}
+
+#[derive(Debug)]
+enum ExecuteError {
+    KeyNotFound,
+    InvalidOperation,
+}
+
+struct Database {
+    data: HashMap<String, String>,
+}
+
+impl Database {
+    fn new() -> Self {
+        Database {
+            data: HashMap::new(),
+        }
+    }
+    
+    fn set(&mut self, key: String, value: String) {
+        self.data.insert(key, value);
+    }
+    
+    fn get(&self, key: &str) -> Option<&String> {
+        self.data.get(key)
+    }
+    
+    fn delete(&mut self, key: &str) -> bool {
+        self.data.remove(key).is_some()
+    }
+    
+    fn clear(&mut self) {
+        self.data.clear();
+    }
+    
+    fn list(&self) -> Vec<(&String, &String)> {
+        self.data.iter().collect()
+    }
+}
+
+fn parse_command(input: &str) -> Result<Command, ParseError> {
+    let parts: Vec<&str> = input.trim().split_whitespace().collect();
+    
+    match parts.get(0).map(|s| *s) {
+        Some("set") => {
+            if parts.len() != 3 {
+                Err(ParseError::MissingArguments)
+            } else {
+                Ok(Command::Set {
+                    key: parts[1].to_string(),
+                    value: parts[2].to_string(),
+                })
+            }
+        }
+        Some("get") => {
+            if parts.len() != 2 {
+                Err(ParseError::MissingArguments)
+            } else {
+                Ok(Command::Get {
+                    key: parts[1].to_string(),
+                })
+            }
+        }
+        Some("delete") => {
+            if parts.len() != 2 {
+                Err(ParseError::MissingArguments)
+            } else {
+                Ok(Command::Delete {
+                    key: parts[1].to_string(),
+                })
+            }
+        }
+        Some("clear") => {
+            if parts.len() > 1 {
+                Err(ParseError::TooManyArguments)
+            } else {
+                Ok(Command::Clear)
+            }
+        }
+        Some("list") => {
+            if parts.len() > 1 {
+                Err(ParseError::TooManyArguments)
+            } else {
+                Ok(Command::List)
+            }
+        }
+        Some("exit") => {
+            if parts.len() > 1 {
+                Err(ParseError::TooManyArguments)
+            } else {
+                Ok(Command::Exit)
+            }
+        }
+        Some(_) => Err(ParseError::InvalidCommand),
+        None => Err(ParseError::InvalidCommand),
+    }
+}
+
+fn execute_command(command: Command, db: &mut Database) -> Result<String, ExecuteError> {
+    match command {
+        Command::Set { key, value } => {
+            db.set(key.clone(), value.clone());
+            Ok(format!("Set {} = {}", key, value))
+        }
+        Command::Get { key } => {
+            match db.get(&key) {
+                Some(value) => Ok(format!("{} = {}", key, value)),
+                None => Err(ExecuteError::KeyNotFound),
+            }
+        }
+        Command::Delete { key } => {
+            if db.delete(&key) {
+                Ok(format!("Deleted {}", key))
+            } else {
+                Err(ExecuteError::KeyNotFound)
+            }
+        }
+        Command::Clear => {
+            db.clear();
+            Ok("Cleared all data".to_string())
+        }
+        Command::List => {
+            let items = db.list();
+            if items.is_empty() {
+                Ok("Database is empty".to_string())
+            } else {
+                let mut output = String::from("Database contents:\n");
+                for (key, value) in items {
+                    output.push_str(&format!("{} = {}\n", key, value));
+                }
+                Ok(output.trim().to_string())
+            }
+        }
+        Command::Exit => Ok("Goodbye!".to_string()),
+    }
+}
+
+fn main() {
+    let mut db = Database::new();
+    
+    println!("Simple Database CLI");
+    println!("Commands: set <key> <value>, get <key>, delete <key>, clear, list, exit");
+    
+    loop {
+        print!("> ");
+        io::stdout().flush().unwrap();
+        
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
+        
+        match parse_command(&input) {
+            Ok(command) => {
+                match command {
+                    Command::Exit => {
+                        println!("Goodbye!");
+                        break;
+                    }
+                    cmd => {
+                        match execute_command(cmd, &mut db) {
+                            Ok(message) => println!("{}", message),
+                            Err(ExecuteError::KeyNotFound) => println!("Error: Key not found"),
+                            Err(ExecuteError::InvalidOperation) => println!("Error: Invalid operation"),
+                        }
+                    }
+                }
+            }
+            Err(ParseError::InvalidCommand) => println!("Error: Invalid command"),
+            Err(ParseError::MissingArguments) => println!("Error: Missing arguments"),
+            Err(ParseError::TooManyArguments) => println!("Error: Too many arguments"),
+        }
+    }
+}
+
+// Additional practice exercises:
+
+// Exercise 1: Add support for nested keys (e.g., "user.name")
+// Exercise 2: Add a history feature to track the last N commands
+// Exercise 3: Implement undo/redo functionality
+// Exercise 4: Add support for importing/exporting the database to a file
+// Exercise 5: Implement value types (string, number, boolean) and type checking
+```
+</details>
+
+## Summary of Key Concepts
+
+### Structs
+- Regular structs with named fields
+- Tuple structs
+- Unit-like structs
+- Implementation blocks
+- Associated functions vs methods
+
+### Enums
+- Variants with different types of data
+- Implementation blocks for enums
+- Option and Result enums
+- Pattern matching with enums
+
+### Pattern Matching
+- match expressions
+- if let syntax
+- while let syntax
+- Destructuring patterns
+- Guards in patterns
+
+## Best Practices
+
+<Callout type="info" title="Rust Design Patterns">
+1. Use enums for types with a fixed set of possible values
+2. Use structs for data that belongs together
+3. Implement common traits (Debug, Clone, etc.) when appropriate
+4. Use pattern matching to handle all possible cases
+5. Use Option instead of null values
+6. Use Result for error handling
+</Callout>
+
+## Common Mistakes and Solutions
+
+<Callout type="warn" title="Common Pitfalls">
+1. **Forgetting to handle all cases in pattern matching**
+   ```rust
+   // Wrong:
+   match value {
+       Some(x) => println!("{}", x),
+   }
+   
+   // Right:
+   match value {
+       Some(x) => println!("{}", x),
+       None => println!("No value"),
+   }
+   ```
+
+2. **Not implementing Debug for custom types**
+   ```rust
+   // Wrong:
+   struct Point {
+       x: i32,
+       y: i32,
+   }
+   
+   // Right:
+   #[derive(Debug)]
+   struct Point {
+       x: i32,
+       y: i32,
+   }
+   ```
+
+3. **Unnecessary use of clone**
+   ```rust
+   // Wrong:
+   let s = String::from("hello");
+   let len = calculate_length(s.clone());
+   
+   // Right:
+   let s = String::from("hello");
+   let len = calculate_length(&s);
+   ```
+</Callout>
+
+## Next Steps
+
+After completing this chapter, you should be able to:
+- Define and use custom data types with structs
+- Create enums with different variants
+- Use pattern matching effectively
+- Handle optional values and errors
+- Design and implement complex systems
+
+The next chapter will cover traits and generics, which will help you write more flexible and reusable code.
+
+<Cards>
+  <Card
+    title="Rust Design Patterns"
+    href="https://rust-lang.github.io/patterns/"
+  >
+    Learn common design patterns in Rust
+  </Card>
+  
+  <Card
+    title="Error Handling in Rust"
+    href="https://doc.rust-lang.org/book/ch09-00-error-handling.html"
+  >
+    Deep dive into error handling
+  </Card>
+</Cards>
