@@ -7,7 +7,7 @@ import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 
 # Rust Development Environment Setup
 
-This chapter will guide you through setting up a complete Rust development environment suitable for Halo2 development. We'll cover everything from installing Rust to configuring your IDE.
+This chapter will guide you through setting up a complete Rust development environment suitable for Halo2 development.
 
 ## Prerequisites
 
@@ -16,6 +16,7 @@ Before we begin, ensure you have:
 - Administrative access to install software
 - Internet connection
 - Basic familiarity with command line operations
+- IDE installed
 
 ## Installing the Rust Toolchain
 
@@ -66,46 +67,50 @@ To update your Rust installation:
 rustup update
 ```
 
-## IDE Setup
+## Essential Development Extensions
 
-While you can use any text editor for Rust development, we recommend Visual Studio Code (VS Code) for its excellent Rust support.
-
-### Installing VS Code
-
-1. Download VS Code from [https://code.visualstudio.com/](https://code.visualstudio.com/)
-2. Follow the installation instructions for your operating system
-
-### Essential Extensions
-
-Install these VS Code extensions for the best Rust development experience:
+Install these extensions for the best Rust development experience:
 
 <Cards>
   <Card
     title="rust-analyzer"
     href="https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer"
   >
-    The official Rust language server. Provides code completion, go to definition, and more.
+    The official Rust language server. Provides intelligent code completion, go to definition, real-time error checking, inline type hints, smart refactoring, and automatic imports.
   </Card>
   
   <Card
     title="CodeLLDB"
     href="https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb"
   >
-    Debug support for Rust code.
+    Advanced debugging support for Rust, including breakpoint management, variable inspection, stack trace navigation, and memory inspection.
+  </Card>
+
+  <Card
+    title="Better TOML"
+    href="https://marketplace.visualstudio.com/items?itemName=bungcip.better-toml"
+  >
+    Improved support for Cargo.toml files with syntax highlighting, semantic validation, and autocompletion for dependencies.
+  </Card>
+
+  <Card
+    title="crates"
+    href="https://marketplace.visualstudio.com/items?itemName=serayuzgur.crates"
+  >
+    Helps manage Rust dependencies with version lookup, update notifications, and easy access to dependency documentation.
   </Card>
 </Cards>
 
-### Recommended VS Code Settings
+### Recommended Settings
 
-Create or update your `settings.json` in VS Code with these settings:
+Add these settings to your editor configuration:
 
 ```json title="settings.json"
 {
     "editor.formatOnSave": true,
-    "rust-analyzer.checkOnSave.command": "clippy",
-    "rust-analyzer.inlayHints.enable": true,
     "rust-analyzer.inlayHints.typeHints.enable": true,
-    "rust-analyzer.inlayHints.parameterHints.enable": true
+    "rust-analyzer.inlayHints.parameterHints.enable": true,
+    "rust-analyzer.procMacro.enable": true
 }
 ```
 
@@ -118,14 +123,14 @@ Let's create and run a simple Rust program to verify everything is working corre
 Open your terminal and run:
 
 ```bash
-cargo new hello_rust
-cd hello_rust
+cargo new hello_halo2
+cd hello_halo2
 ```
 
-This creates a new directory `hello_rust` with this structure:
+This creates a new directory `hello_halo2` with this structure:
 
 ```plaintext
-hello_rust/
+hello_halo2/
 ├── Cargo.toml
 └── src/
     └── main.rs
@@ -138,7 +143,7 @@ This is your project's manifest file. It includes metadata and dependencies:
 
 ```toml title="Cargo.toml"
 [package]
-name = "hello_rust"
+name = "hello_halo2"
 version = "0.1.0"
 edition = "2021"
 
@@ -150,7 +155,7 @@ This is your program's entry point:
 
 ```rust title="src/main.rs"
 fn main() {
-    println!("Hello, Halo2 learner!");
+    println!("Hello, world!");
 }
 ```
 
@@ -164,10 +169,10 @@ cargo run
 
 You should see:
 ```plaintext
-   Compiling hello_rust v0.1.0
+   Compiling hello_halo2 v0.1.0
     Finished dev [unoptimized + debuginfo] target(s) in 0.61s
-     Running `target/debug/hello_rust`
-Hello, Halo2 learner!
+     Running `target/debug/hello_halo2`
+Hello, world!
 ```
 
 <Callout type="info" title="Cargo Commands">
@@ -176,13 +181,15 @@ Common Cargo commands:
 - `cargo run`: Compiles and runs your project
 - `cargo check`: Checks your code for errors without producing an executable
 - `cargo test`: Runs tests
+- `cargo clippy`: Runs the Rust linter for additional code checks
+- `cargo fmt`: Formats your code according to Rust style guidelines
 </Callout>
 
 ## Exercises
 
 1. **Environment Verification**
    - Install Rust and verify the installation
-   - Set up VS Code with recommended extensions
+   - Install recommended extensions
    - Create and run a "Hello, World!" program
 
 2. **Cargo Exploration**
@@ -193,13 +200,38 @@ Common Cargo commands:
    cargo check
    cargo build
    cargo run
+   cargo clippy
+   cargo fmt
    ```
 
 3. **Project Structure**
-   - Create a new project
-   - Add a function that returns a string
-   - Call this function from `main()`
-   - Build and run the project
+   - Create a new project called `my_first_circuit`:
+     ```bash
+     cargo new my_first_circuit
+     cd my_first_circuit
+     ```
+   - Modify `src/main.rs` to add a greeting function:
+     ```rust
+     fn get_greeting(name: &str) -> String {
+         format!("Welcome to Rust, {}!", name)
+     }
+     
+     fn main() {
+         let greeting = get_greeting("Halo2 Developer");
+         println!("{}", greeting);
+     }
+     ```
+   - Build and run your project:
+     ```bash
+     cargo run
+     ```
+     You should see:
+     ```plaintext
+     Compiling my_first_circuit v0.1.0
+      Finished dev [unoptimized + debuginfo] target(s) in 0.50s
+       Running `target/debug/my_first_circuit`
+     Welcome to Rust, Halo2 Developer!
+     ```
 
 ## Common Issues and Solutions
 
@@ -212,15 +244,17 @@ Here are some common issues you might encounter:
 2. **Permission errors during installation**
    - Solution: Use `sudo` on Unix-like systems or run as administrator on Windows
 
-3. **VS Code extensions not working**
-   - Solution: Ensure rust-analyzer is properly installed and reload VS Code
+3. **rust-analyzer not working**
+   - Solution: Ensure you have a valid Cargo.toml in your workspace
+   - Check that rust-analyzer is properly installed and enabled
+   - Reload your editor window
 </Callout>
 
 ## Next Steps
 
 Once you've completed this chapter, you should have:
 - A working Rust installation
-- A configured development environment
+- Essential development extensions installed and configured
 - Successfully created and run your first Rust program
 - Basic familiarity with Cargo commands
 
@@ -241,5 +275,12 @@ In the next chapter, we'll dive into Rust's basic syntax and fundamental concept
     href="https://doc.rust-lang.org/rust-by-example/"
   >
     Learn Rust through interactive examples
+  </Card>
+  
+  <Card
+    title="rust-analyzer Manual"
+    href="https://rust-analyzer.github.io/manual.html"
+  >
+    Detailed guide for rust-analyzer usage and configuration
   </Card>
 </Cards>
