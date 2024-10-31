@@ -1,5 +1,17 @@
 {
   "title": "Part 2: Halo2 Basics",
   "defaultOpen": "true",
-  "pages": ["---Coming Soon---"]
+  "pages": [
+    "---Coming Soon---",
+    "chap12",
+    "chap13",
+    "chap14",
+    "chap15",
+    "chap16",
+    "chap17",
+    "chap18",
+    "chap19",
+    "chap20",
+    "chap21"
+  ]
 }
