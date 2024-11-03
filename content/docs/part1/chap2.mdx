@@ -9,6 +9,49 @@ import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 
 This chapter introduces the fundamental syntax and basic concepts of Rust. We'll focus on the essential building blocks you'll need for Halo2 development.
 
+## Setting Up Your Exercise Environment
+
+Before starting the exercises, let's set up your development environment:
+
+1. **Create a New Project**
+   ```bash
+   # Initialize a new Rust project
+   cargo new chapter2
+   cd chapter2
+   ```
+
+2. **Directory Structure**
+   Create the following structure for your exercises:
+   ```plaintext
+   chapter2/
+   ├── Cargo.toml
+   ├── src/
+   │   └── main.rs
+   └── exercises/
+       ├── variables.rs
+       ├── control_flow.rs
+       ├── collections.rs
+       ├── functions.rs
+       └── integration.rs
+   ```
+
+3. **Running Exercises**
+   You can run exercises in two ways:
+   - By copying the exercise code into `src/main.rs`:
+     ```bash
+     cargo run
+     ```
+   - By creating separate binaries in `Cargo.toml`:
+     ```toml
+     [[bin]]
+     name = "variables"
+     path = "exercises/variables.rs"
+     ```
+     Then run:
+     ```bash
+     cargo run --bin variables
+     ```
+
 ## Variables and Data Types
 
 ### Variable Declaration
@@ -125,6 +168,116 @@ let first = numbers[0];
 Array indices are checked at runtime. Accessing an array with an invalid index will cause a panic.
 </Callout>
 
+### Practice Exercise: Variables
+
+```rust title="practices/exercises/chapter2/variables.rs"
+fn main() {
+    // Exercise 1: Fix the error in this code
+    let x = 5;
+    x = 6;  // Try to fix this
+    
+    // Exercise 2: Declare a mutable variable and modify it
+    
+    // Exercise 3: Create variables with explicit type annotations
+    
+    // Exercise 4: Try to assign a value outside of u8 range
+}
+```
+
+<details>
+<summary>Show Solutions</summary>
+
+```rust
+use std::io;
+
+fn main() {
+    // Exercise 1: Understanding Mutability
+    println!("\n=== Exercise 1: Mutability ===");
+    // Error case
+    let x = 5;
+    println!("Original x: {}", x);
+    // x = 6;  // This would cause a compile error
+
+    // Solution: Make the variable mutable
+    let mut y = 5;
+    println!("Original y: {}", y);
+    y = 6;
+    println!("Modified y: {}", y);
+
+    // Exercise 2: Different ways to declare mutable variables
+    println!("\n=== Exercise 2: Variable Declaration ===");
+    // Simple numeric variable
+    let mut count = 0;
+    count += 1;
+    println!("Count: {}", count);
+
+    // String variable
+    let mut message = String::from("Hello");
+    message.push_str(", World!");
+    println!("Message: {}", message);
+
+    // Using type annotations
+    let mut counter: u32 = 32;
+    println!("Before: Counter: {}", counter);
+    counter = 42;
+    println!("After: Counter: {}", counter);
+
+    // Exercise 3: Type annotations and conversions
+    println!("\n=== Exercise 3: Type Annotations ===");
+    let integer: i32 = -42;
+    let float: f64 = 3.14159;
+    let boolean: bool = true;
+    let character: char = '🦀';
+
+    println!("Integer: {}", integer);
+    println!("Float: {}", float);
+    println!("Boolean: {}", boolean);
+    println!("Character: {}", character);
+
+    // Type conversion example
+    let float_to_int: i32 = float as i32;
+    println!("Float converted to integer: {}", float_to_int);
+
+    // Exercise 4: Working with numeric bounds
+    println!("\n=== Exercise 4: Numeric Bounds ===");
+    // Maximum values
+    let max_u8: u8 = u8::MAX;
+    let max_i8: i8 = i8::MAX;
+    println!("Maximum u8: {}", max_u8);
+    println!("Maximum i8: {}", max_i8);
+
+    // This would cause overflow in debug mode
+    // let overflow: u8 = 256;  // Compile error
+
+    // Safe handling of potential overflow
+    let big_number = 1000;
+    let converted = match u8::try_from(big_number) {
+        Ok(num) => num,
+        Err(_) => {
+            println!("Could not convert {} to u8, using max value", big_number);
+            u8::MAX
+        }
+    };
+    println!("Safely handled conversion: {}", converted);
+
+    // Bonus: Interactive example
+    println!("\n=== Bonus: Interactive Example ===");
+    println!("Enter a number between 0 and 255:");
+
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to read line");
+
+    // Parse input and handle potential errors
+    match input.trim().parse::<u8>() {
+        Ok(num) => println!("Successfully parsed u8: {}", num),
+        Err(e) => println!("Error parsing number: {}. Using 0 instead.", e),
+    }
+}
+```
+</details>
+
 ## Control Flow
 
 ### If Expressions
@@ -192,7 +345,19 @@ println!("Result: {}", result);  // Prints: Result: 20
 
 ### Practice Exercises: Control Flow
 
-```rust title="exercises/chap2/control_flow.rs"
+```rust title="practices/exercises/chapter2/control_flow.rs"
+use std::io::{self, Write};
+
+// Helper function to get user input
+fn get_input(prompt: &str) -> String {
+    print!("{}", prompt);
+    io::stdout().flush().unwrap();
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap();
+    input.trim().to_string()
+}
+
 fn main() {
     // Exercise 1: FizzBuzz
     // Write a program that prints numbers from 1 to 100
@@ -207,6 +372,54 @@ fn main() {
     
     // Exercise 4: Implement a simple calculator using a match expression
     // It should handle addition, subtraction, multiplication, and division
+    fn calculator(op: char, a: f64, b: f64) -> Option<f64> {
+        // Implement the calculator function
+        // Operations: +, -, *, /
+        // Return None if the operation is not recognized
+    }
+
+    loop {
+        println!("\nSimple Calculator");
+        println!("Operations: +, -, *, / (or 'q' to quit)");
+        
+        let operation = get_input("Enter operation: ");
+        if operation == "q" {
+            println!("Goodbye!");
+            break;
+        }
+        
+        let op = operation.chars().next().unwrap_or(' ');
+        if !['+', '-', '*', '/'].contains(&op) {
+            println!("Invalid operation!");
+            continue;
+        }
+
+        // Get first number
+        let num1_str = get_input("Enter first number: ");
+        let num1: f64 = match num1_str.parse() {
+            Ok(num) => num,
+            Err(_) => {
+                println!("Invalid number!");
+                continue;
+            }
+        };
+
+        // Get second number
+        let num2_str = get_input("Enter second number: ");
+        let num2: f64 = match num2_str.parse() {
+            Ok(num) => num,
+            Err(_) => {
+                println!("Invalid number!");
+                continue;
+            }
+        };
+
+        // Perform calculation
+        match calculate(op, num1, num2) {
+            Some(result) => println!("{} {} {} = {}", num1, op, num2, result),
+            None => println!("Error: Division by zero or invalid operation"),
+        }
+    }
 }
 ```
 
@@ -293,7 +506,7 @@ The last expression in a function block is implicitly returned. If you want to r
 
 ### Practice Exercises: Functions
 
-```rust title="exercises/functions.rs"
+```rust title="practices/exercises/chapter2/functions.rs"
 // Exercise 1: Write a function that takes a string and returns its length
 // Bonus: Make it work with Unicode characters correctly
 
@@ -307,7 +520,25 @@ The last expression in a function block is implicitly returned. If you want to r
 // It should return a Result type to handle invalid inputs (negative numbers)
 
 fn main() {
-    // Test your functions here
+    // Test Exercise 1
+    assert_eq!(string_length("hello"), 5);
+    assert_eq!(string_length("你好"), 2);
+    
+    // Test Exercise 2
+    let numbers = [1, 5, 3, 8, 2];
+    let (min, max) = find_min_max(&numbers);
+    assert_eq!(min, 1);
+    assert_eq!(max, 8);
+    
+    // Test Exercise 3
+    let (c, k) = fahrenheit_to_all(32.0);
+    assert_eq!(c, 0.0);
+    assert_eq!(k, 273.15);
+    
+    // Test Exercise 4
+    assert_eq!(is_prime(17), Ok(true));
+    assert_eq!(is_prime(4), Ok(false));
+    assert!(is_prime(-5).is_err());
 }
 ```
 
@@ -381,9 +612,76 @@ fn main() {
 ```
 </details>
 
+## Collections and Debug Output
+
+### Vectors and vec! Macro
+A vector (`Vec<T>`) is a resizable array type in Rust. The `vec![]` is a macro that creates vectors.
+
+<Callout type="info">
+A macro in Rust is a way to write code that writes other code, often used to reduce repetitive code patterns. Macros are called with a `!` mark, like `vec![]`, `println!()`, or `format!()`.
+</Callout>
+
+```rust
+// Creating vectors
+let mut numbers = vec![1, 2, 3, 4, 5];  // Using vec! macro
+let mut empty: Vec<i32> = Vec::new();   // Empty vector
+
+// Common operations
+numbers.push(6);                  // Add element
+numbers.pop();                   // Remove last element
+let third = &numbers[2];         // Access element
+let length = numbers.len();      // Get length
+
+// Iterating
+for number in &numbers {
+    println!("{}", number);
+}
+```
+
+### Debug Output
+The `#[derive(Debug)]` attribute automatically implements debug formatting for printing and debugging structs.
+
+<Callout type="info" title="Debug in Integration Exercise">
+You'll notice `#[derive(Debug)]` in our integration exercise where we build a grade management system. This is used to:
+- Print student records for debugging
+- Format the grades vector in reports
+- Enable easy inspection of the data structure during development
+</Callout>
+
+```rust
+#[derive(Debug)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+fn main() {
+    let point = Point { x: 0, y: 0 };
+    println!("{:?}", point);     // Point { x: 0, y: 0 }
+    println!("{:#?}", point);    // Pretty print format
+}
+```
+
+<Callout type="note" title="Common Macros in Rust">
+1. `vec![]` - Creates a vector
+2. `println!()` - Prints to console with formatting
+3. `format!()` - Creates formatted strings
+4. `assert!()` - Verification in testing
+5. `panic!()` - Terminates with error message
+</Callout>
+
+### Collections Operations For Later
+```rust
+// These operations will be used in the grade management system
+let mut grades = vec![85, 92, 78];
+grades.push(90);              // Add grade
+let average = grades.iter().sum::<i32>() as f64 / grades.len() as f64;
+grades.is_empty();           // Check if vector is empty
+```
+
 ## Integration Challenge: Combining Concepts
 
-```rust title="exercises/integration.rs"
+```rust title="practices/exercises/chapter2/integration.rs"
 // Final Challenge: Create a simple grade management system that combines
 // all the concepts we've learned. The system should:
 // 1. Store student grades using appropriate data types
@@ -401,7 +699,31 @@ impl Student {
 }
 
 fn main() {
-    // TODO: Implement the grade management system
+    let mut students = vec![
+        Student::new("Alice".to_string()),
+        Student::new("Bob".to_string()),
+    ];
+
+    // Add grades for Alice
+    if let Err(e) = students[0].add_grade(85.0) {
+        eprintln!("Error: {}", e);
+    }
+    if let Err(e) = students[0].add_grade(92.0) {
+        eprintln!("Error: {}", e);
+    }
+
+    // Add grades for Bob
+    if let Err(e) = students[1].add_grade(75.0) {
+        eprintln!("Error: {}", e);
+    }
+    if let Err(e) = students[1].add_grade(88.0) {
+        eprintln!("Error: {}", e);
+    }
+
+    // Generate reports
+    for student in &students {
+        println!("\n{}", student.generate_report());
+    }
 }
 ```
 
@@ -570,6 +892,7 @@ After completing this chapter, you should:
 - Be able to work with variables and different data types
 - Know how to use control flow statements
 - Be able to define and use functions
+- Understand how to use collections and debug output
 - Have practical experience through exercises and projects
 
 In the next chapter, we'll explore Rust's ownership system, which is one of its most unique and powerful features.

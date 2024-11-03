@@ -123,8 +123,9 @@ Let's create and run a simple Rust program to verify everything is working corre
 Open your terminal and run:
 
 ```bash
-cargo new hello_halo2
-cd hello_halo2
+mkdir practices
+cargo new practices/hello_halo2
+cd practices/hello_halo2
 ```
 
 This creates a new directory `hello_halo2` with this structure:
@@ -193,16 +194,20 @@ Common Cargo commands:
    - Create and run a "Hello, World!" program
 
 2. **Cargo Exploration**
-   ```bash
-   # Try these commands and observe the output
-   cargo new my_first_circuit
-   cd my_first_circuit
-   cargo check
-   cargo build
-   cargo run
-   cargo clippy
-   cargo fmt
-   ```
+  <Callout>
+    In this tutorial, we will run all the exercises in the `practices` directory.
+  </Callout>
+
+  ```bash
+  # Try these commands and observe the output
+  cargo new my_first_circuit
+  cd my_first_circuit
+  cargo check
+  cargo build
+  cargo run
+  cargo clippy
+  cargo fmt
+  ```
 
 3. **Project Structure**
    - Modify `src/main.rs` to add a greeting function:
