@@ -1,0 +1,22 @@
+[package]
+name = "chapter2"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[[bin]]
+name = "variables"
+path = "exercises/variables.rs"
+
+[[bin]]
+name = "control_flow"
+path = "exercises/control_flow.rs"
+
+[[bin]]
+name = "functions"
+path = "exercises/functions.rs"
+
+[[bin]]
+name = "integration"
+path = "exercises/integration.rs"
